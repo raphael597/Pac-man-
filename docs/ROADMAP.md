@@ -95,25 +95,41 @@ headroom left for a learned representation to recover.
 
 ## What to do next
 
-In priority order, if the project continues:
+Three independent methods now agree on where the remaining weakness is, which
+makes the next step unusually well specified.
+
+| method | evidence | conclusion |
+|---|---|---|
+| failure analysis | 0 losses from elimination, 100% survival, all losses on points | safety spending is wasted |
+| weight optimisation | `mobility` cut 56% by the search | safety weighted too heavily |
+| adversarial search | only pure harvesters beat it; every aggressor loses 100% | it out-survives but under-collects |
+
+**SUPERPAC's defensive machinery is comfortably ahead of what the opponent
+population can punish. The marginal move should be spent on food.**
+
+In priority order:
 
 1. **Re-target to the real API.** Everything else is speculative until the
    teacher's files exist. `docs/GAME_API.md` has the procedure; it should take
-   under an hour.
-2. **Re-run the optimiser under the real rules.** The tuned weights encode
-   assumptions about elimination and scoring. If the real game does not
-   eliminate players, `death` at ~260 is badly wrong and the search will say
-   so quickly.
-3. **Scale the benchmark.** Current runs are 128–160 games per cell, giving
-   ±10% confidence intervals. The brief asks for 10,000+; that is a few hours
-   of wall time on four cores and would let genuinely small improvements be
-   detected instead of guessed at.
-4. **Close the adversarial loop.** `scripts/adversarial.py` finds
-   counter-strategies; wiring its output back into the optimiser's training
-   population and iterating is the single highest-value remaining piece of
-   work, and it is the one the brief calls critical.
-5. **Deeper search, if it pays.** SUPERPAC uses ~5 ms of a ~62 ms budget.
+   under an hour, and it changes no AI code.
+2. **Attack harvesting throughput**, guided by the finding above. The specific
+   target is `cluster_6`, which holds SUPERPAC to 20%: a bot that does nothing
+   but collect dense pockets efficiently. Candidate directions: replace the
+   max-form food-potential field with something that does not double-count
+   revisits, plan multi-pellet routes rather than greedy potential ascent, or
+   simply push `danger` and `death` down and see where the survival rate
+   starts to cost more than the food gains.
+3. **Scale the benchmark before trusting any of it.** This is the lesson of
+   the whole results file: at 64–176 games, three separate measurements said
+   the weight tuning helped by 4.7 points, helped by 3.9 points, and hurt by
+   8.7 points. At 720 games the answer was "no significant difference". The
+   brief asks for 10,000+ games; a few hours on four cores would let genuinely
+   small improvements be detected instead of imagined.
+4. **Close the adversarial loop.** The search finds counter-strategies; wiring
+   its output back into the optimiser's training population and iterating is
+   what the brief calls critical, and only the first half of it is built.
+5. **Deeper search, if it pays.** SUPERPAC uses ~4 ms of a ~62 ms budget.
    Raising `max_depth` and `beam_width` is free in wall-clock terms; whether
-   it is free in *quality* terms is an open question, since deeper search
+   it is free in *quality* terms is genuinely open, since deeper search
    against a mispredicted opponent compounds the error rather than reducing
-   it. The duel harness can now answer this properly.
+   it. Given point 3, answering this needs thousands of games, not hundreds.
