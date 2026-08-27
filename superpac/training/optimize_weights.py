@@ -44,7 +44,6 @@ BOUNDS: Dict[str, Tuple[float, float]] = {
     "open_space": (0.0, 4.0),
     "denial": (0.0, 5.0),
     "information": (0.0, 2.0),
-    "progress": (0.0, 3.0),
     "death": (60.0, 600.0),
     "danger": (0.0, 30.0),
     "contest": (0.0, 5.0),
@@ -64,6 +63,25 @@ INT_BOUNDS: Dict[str, Tuple[int, int]] = {
     "forecast_horizon": (2, 7),
     "scenario_count": (3, 12),
 }
+
+
+def _verify_bounds_match_weights() -> None:
+    """Fail at import time if the search space drifts from the weight set.
+
+    Removing a weight and forgetting to remove its bound produced an
+    ``AttributeError`` deep inside a worker process, twenty minutes into an
+    optimisation run.  Checking it here costs nothing and turns that into an
+    immediate, obvious error.
+    """
+    known = set(Weights.names())
+    stale = (set(BOUNDS) | set(INT_BOUNDS)) - known
+    if stale:
+        raise RuntimeError(
+            f"optimiser bounds reference weights that no longer exist: "
+            f"{sorted(stale)}")
+
+
+_verify_bounds_match_weights()
 
 
 def clamp_weights(w: Weights) -> Weights:
