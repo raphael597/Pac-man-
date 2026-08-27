@@ -234,6 +234,66 @@ taken. That is what the evolutionary search exists to settle, and it is the
 right tool for it: hand-tweaking one more constant here would just be another
 untested intuition.
 
+## Weight tuning
+
+`python scripts/evolve.py --generations 12 --population 14 --games 16` —
+5,376 matches over 21 minutes on four cores. Fitness is measured on the
+training population with common random numbers inside each generation and a
+fresh scenario battery between them; the champion is then selected on the
+disjoint *validation* population, so the search cannot win by memorising the
+bots it was scored against.
+
+| | validation win rate | placement |
+|---|---|---|
+| hand-set defaults | 78.1% | 0.31 |
+| **tuned champion** | **82.8%** | **0.22** |
+
+### What it changed, and why that is interesting
+
+| `information` | 0.35 | **0.751** | +114% |
+| `endgame_lead_ratio` | 0.5 | **0.876** | +75% |
+| `mobility` | 2.6 | **1.14** | -56% |
+| `trap` | 7 | **9.69** | +38% |
+| `territory` | 0.5 | **0.68** | +36% |
+| `contest` | 1.1 | **0.788** | -28% |
+| `forecast_horizon` | 4 | **5** | +25% |
+| `cluster` | 0.3 | **0.236** | -21% |
+| `risk_aversion` | 0.55 | **0.648** | +18% |
+| `explore_epsilon` | 0.035 | **0.0411** | +17% |
+| `beam_width` | 12 | **14** | +17% |
+| `open_space` | 0.9 | **0.932** | +4% |
+
+Two of these are the optimiser independently reaching conclusions the failure
+analysis had already pointed at, from completely different evidence:
+
+* **`mobility` more than halved.** Failure analysis had found that *no* loss
+  came from elimination — survival was already at 100% — so moves spent
+  keeping escape routes open were moves not spent on food. The search found
+  the same thing by playing games.
+* **`endgame_lead_ratio` rose to 0.88.** The A/B on protecting only a safe
+  lead was inconclusive at 176 games; the optimiser pushed the parameter
+  *further* in that direction than the default, which is weak independent
+  support for the change.
+
+Two more are worth noting:
+
+* **`trap` rose 38%**, the largest increase in the table. That is the term
+  that was dead on arrival and had to be rebuilt around the race for the
+  pocket mouth. The search valuing it above its hand-set weight is a decent
+  sign the rebuild was the right shape.
+* **`intercept` stayed at exactly zero.** Free to move anywhere in [0, 5], the
+  search left it alone — which matches the structural argument that under
+  Highlander rules body-blocking is mutual destruction and the field is empty
+  by construction.
+
+`cluster` and `territory` were the two whose value the broken harness had
+"disproved". Given a free hand in [0, 5] and [0, 8], the optimiser kept both
+small but non-zero (0.24 and 0.68). So: marginal, not
+worthless, and nothing like the values intuition suggested.
+
+The following were never mutated away from their defaults and remain
+hand-set: `food`, `food_potential`, `denial`, `intercept`, `death`, `danger`, `dead_end`, `stagnation`, `discount`, `potential_discount`, `territory_softness`, `max_depth`, `scenario_count`.
+
 ## Performance
 
 `python scripts/profile_agent.py`

@@ -19,7 +19,7 @@ Guarantees: always returns a legal action, never raises out of ``act``, and
 respects the per-move time limit via an anytime search with a safety margin.
 
 Built: 2026-08-27
-Weights: hand-set defaults (no tuned file found)
+Weights: tuned (results/weights_champion.json)
 """
 
 from __future__ import annotations
@@ -2847,6 +2847,14 @@ class Weights:
     risk_aversion: float = 0.55
     """How hard to penalise the bad tail across scenarios (section 20)."""
     territory_softness: float = 1.4
+    endgame_lead_ratio: float = 0.5
+    """How safe a late-game lead must be before we switch to protecting it.
+
+    Expressed as a fraction of the food still on the board: a lead of 3 with
+    20 points still available is not a lead, it is a coin flip.  Setting this
+    to 0 reproduces the old behaviour of protecting *any* lead, which failure
+    analysis showed was losing 14% of games to endgame collapse.
+    """
     beam_width: int = 12
     max_depth: int = 6
     forecast_horizon: int = 4
@@ -3268,9 +3276,20 @@ class StrategyManager:
 
         # --- endgame ---------------------------------------------------
         if progress >= self.endgame_at:
-            if gap > 0:
-                self.reason = f"ahead by {gap:.1f} at {progress:.0%}"
+            # A lead is only worth protecting when the food still on the board
+            # cannot overturn it.  Treating every lead as safe meant playing
+            # for survival while a greedy rival simply out-collected us -
+            # failure analysis attributed 14% of all losses to exactly that,
+            # with SUPERPAC never once in danger of elimination.
+            live_points = len(state.food) * state.rules.food_value
+            safe_margin = max(1.0, self.base.endgame_lead_ratio * live_points)
+            if gap >= safe_margin:
+                self.reason = f"lead of {gap:.1f} is safe vs {live_points:.0f} left"
                 return self._settle(Mode.ENDGAME_LEADING)
+            if gap > 0:
+                self.reason = (f"ahead by {gap:.1f} but {live_points:.0f} still "
+                               f"on the board - keep collecting")
+                return self._settle(Mode.HARVEST)
             self.reason = f"behind by {-gap:.1f} at {progress:.0%}"
             return self._settle(Mode.ENDGAME_TRAILING)
 
@@ -4559,28 +4578,29 @@ def _selftest() -> None:
 TUNED_WEIGHTS = {
     "food": 12.0,
     "food_potential": 5.5,
-    "territory": 0.5,
-    "cluster": 0.3,
-    "mobility": 2.6,
-    "open_space": 0.9,
+    "territory": 0.6795697620708128,
+    "cluster": 0.23630828780117136,
+    "mobility": 1.1441198246127326,
+    "open_space": 0.9324535334352894,
     "denial": 0.8,
     "intercept": 0.0,
-    "information": 0.35,
+    "information": 0.7506548621397154,
     "death": 260.0,
     "danger": 9.0,
-    "contest": 1.1,
+    "contest": 0.7882834362972526,
     "dead_end": 4.2,
-    "trap": 7.0,
+    "trap": 9.687696153168506,
     "stagnation": 1.3,
     "discount": 0.88,
     "potential_discount": 0.8,
-    "risk_aversion": 0.55,
+    "risk_aversion": 0.6475564350983402,
     "territory_softness": 1.4,
-    "beam_width": 12,
+    "endgame_lead_ratio": 0.876107290761242,
+    "beam_width": 14,
     "max_depth": 6,
-    "forecast_horizon": 4,
+    "forecast_horizon": 5,
     "scenario_count": 6,
-    "explore_epsilon": 0.035
+    "explore_epsilon": 0.04111883004654186
 }
 
 WEIGHTS = Weights(**TUNED_WEIGHTS)
