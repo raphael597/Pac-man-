@@ -1,0 +1,19 @@
+baseline: 15 runs in 90s -> results/baseline.json
+
+subject        pop/rules          win     +-  place   score    surv  ms/mv
+--------------------------------------------------------------------------
+superpac       train           52.5% 10.9%  0.637   51.46  96.2%   5.26
+superpac       validation      71.2%  9.9%  0.350   59.17  95.0%   4.72
+superpac       holdout         67.5% 10.3%  0.388   58.24  97.5%   5.20
+greedy         train           32.5% 10.3%  1.375   41.29  40.0%   0.00
+greedy         validation      46.2% 10.9%  1.113   50.38  41.2%   0.00
+greedy         holdout         40.0% 10.7%  1.113   49.80  43.8%   0.00
+cluster        train           38.8% 10.7%  1.050   44.56  48.8%   0.21
+cluster        validation      51.2% 11.0%  0.838   53.92  50.0%   0.20
+cluster        holdout         40.0% 10.7%  1.163   50.84  42.5%   0.16
+defensive      train           26.2%  9.6%  1.238   40.90  96.2%   0.05
+defensive      validation      55.0% 10.9%  0.600   46.20  96.2%   0.05
+defensive      holdout         45.0% 10.9%  0.762   46.19  95.0%   0.05
+greedy_escape  train           42.5% 10.8%  0.950   44.89  98.8%   0.05
+greedy_escape  validation      61.3% 10.7%  0.613   53.74  95.0%   0.05
+greedy_escape  holdout         56.2% 10.9%  0.600   55.02  95.0%   0.05
