@@ -236,7 +236,7 @@ class Field:
 #   uses it to predict who is about to move where.
 #
 # Built: 2026-08-27
-# Weights: hand-set defaults (no tuned file found)
+# Weights: tuned (results/thorest_weights.json)
 # ==========================================================================
 
 import math
@@ -1492,18 +1492,18 @@ class Brain:
 # selected on a separate opponent mix so the numbers describe good play
 # rather than memorised opponents.
 TUNED_WEIGHTS = {
-    "run_ahead": 1.0,
-    "run_discount": 0.88,
-    "density": 0.09,
-    "hunt": 0.85,
-    "hunt_decay": 0.86,
-    "exposure": 6.0,
-    "survival_bonus": 8.0,
-    "discount": 0.97,
-    "beam_width": 26,
-    "depth": 9,
-    "attack_margin": 1.0,
-    "harvest_rate": 0.85
+    "run_ahead": 1.458919989675242,
+    "run_discount": 0.7,
+    "density": 0.129959944896416,
+    "hunt": 0.3636903463335021,
+    "hunt_decay": 0.7511205861003043,
+    "exposure": 5.815493413032783,
+    "survival_bonus": 15.160453512590712,
+    "discount": 0.999,
+    "beam_width": 22,
+    "depth": 10,
+    "attack_margin": 1.056967676909363,
+    "harvest_rate": 0.8457841890125624
 }
 
 THORES_WEIGHTS = Weights(**TUNED_WEIGHTS)

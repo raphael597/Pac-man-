@@ -1,0 +1,32 @@
+{
+  "defaults/holdout": {
+    "win_rate": 0.3416666666666667,
+    "games": 120.0,
+    "strength": 66.53333333333333
+  },
+  "defaults/train": {
+    "win_rate": 0.30833333333333335,
+    "games": 120.0,
+    "strength": 60.225
+  },
+  "defaults/validation": {
+    "win_rate": 0.23333333333333334,
+    "games": 120.0,
+    "strength": 56.108333333333334
+  },
+  "tuned/holdout": {
+    "win_rate": 0.43333333333333335,
+    "games": 120.0,
+    "strength": 78.04166666666667
+  },
+  "tuned/train": {
+    "win_rate": 0.4083333333333333,
+    "games": 120.0,
+    "strength": 78.20833333333333
+  },
+  "tuned/validation": {
+    "win_rate": 0.43333333333333335,
+    "games": 120.0,
+    "strength": 80.175
+  }
+}
