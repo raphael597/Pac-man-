@@ -198,8 +198,24 @@ never exposed; it has to be inferred from observed flight.
 
 ### Robustness to the unknown rules
 
-SUPERPAC is not tuned to one reading of the rules. Win rates under each
-`RuleSet` variant are in `results/rules.json` (`python scripts/bench.py rules`).
+The rules are unknown, so being strong under one reading of them is not enough.
+Win rate under every `RuleSet` variant (`python scripts/bench.py rules`):
+
+| ruleset | what changes | SUPERPAC | greedy | defensive |
+|---|---|---|---|---|
+| default / highlander | contact kills both | **81.2%** | 58.3% | 56.2% |
+| tunnels | wrap-around sides | **81.2%** | 58.3% | 56.2% |
+| no_stay | standing still illegal | **79.2%** | 56.2% | 60.4% |
+| survivor | higher score survives contact | **68.8%** | 62.5% | 31.2% |
+| blocking | moves into occupied cells refused | **68.8%** | 62.5% | 22.9% |
+| peaceful | contact harmless | **66.7%** | 62.5% | 18.8% |
+| sequential | players move one at a time | **62.5%** | 54.2% | 56.2% |
+
+SUPERPAC leads in all seven, and its margin is largest exactly where the
+ruleset is most punishing. Note how badly `defensive` degrades once contact
+stops being lethal (18.8% under `peaceful`): a strategy tuned to one reading
+of the rules falls apart under another, which is the failure mode this sweep
+exists to catch.
 
 ### Timing
 

@@ -1,0 +1,28 @@
+rules: 24 runs in 101s -> results/rules.json
+
+subject        pop/rules          win     +-  place   score    surv  ms/mv
+--------------------------------------------------------------------------
+superpac       default         81.2% 11.0%  0.250   64.33 100.0%   4.14
+greedy         default         58.3% 13.9%  0.854   57.06  54.2%   0.00
+defensive      default         56.2% 14.0%  0.583   51.25  93.8%   0.06
+superpac       highlander      81.2% 11.0%  0.250   64.33 100.0%   4.07
+greedy         highlander      58.3% 13.9%  0.854   57.06  54.2%   0.00
+defensive      highlander      56.2% 14.0%  0.583   51.25  93.8%   0.06
+superpac       survivor        68.8% 13.1%  0.375   57.75 100.0%   4.36
+greedy         survivor        62.5% 13.7%  0.667   59.44  85.4%   0.01
+defensive      survivor        31.2% 13.1%  0.938   44.17  93.8%   0.06
+superpac       peaceful        66.7% 13.3%  0.417   57.79 100.0%   4.81
+greedy         peaceful        62.5% 13.7%  0.479   59.31 100.0%   0.01
+defensive      peaceful        18.8% 11.0%  1.229   42.54 100.0%   0.05
+superpac       blocking        68.8% 13.1%  0.438   57.17 100.0%   4.46
+greedy         blocking        62.5% 13.7%  0.500   59.27 100.0%   0.01
+defensive      blocking        22.9% 11.9%  1.208   42.94 100.0%   0.05
+superpac       sequential      62.5% 13.7%  0.625   59.67  75.0%   3.54
+greedy         sequential      54.2% 14.1%  0.958   56.77  50.0%   0.00
+defensive      sequential      56.2% 14.0%  0.583   52.85  93.8%   0.06
+superpac       no_stay         79.2% 11.5%  0.229   57.27  95.8%   2.87
+greedy         no_stay         56.2% 14.0%  0.771   56.21  60.4%   0.00
+defensive      no_stay         60.4% 13.8%  0.562   47.94  97.9%   0.06
+superpac       tunnels         81.2% 11.0%  0.250   64.33 100.0%   4.75
+greedy         tunnels         58.3% 13.9%  0.854   57.06  54.2%   0.00
+defensive      tunnels         56.2% 14.0%  0.583   51.25  93.8%   0.05
