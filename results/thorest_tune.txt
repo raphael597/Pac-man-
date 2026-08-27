@@ -1,0 +1,36 @@
+gen 0: fitness=0.9361 win=44.4% rank=2.28 str=66.2 vs 86.6 surv=56% ms=6.2
+gen 1: fitness=0.9456 win=38.9% rank=1.83 str=60.8 vs 76.2 surv=72% ms=5.8
+gen 2: fitness=1.1365 win=44.4% rank=1.06 str=75.6 vs 74.5 surv=83% ms=4.9
+gen 3: fitness=1.1712 win=50.0% rank=1.17 str=81.5 vs 80.2 surv=72% ms=3.7
+gen 4: fitness=1.1097 win=44.4% rank=1.11 str=88.8 vs 89.3 surv=67% ms=4.6
+gen 5: fitness=1.3190 win=61.1% rank=0.83 str=94.4 vs 86.8 surv=61% ms=5.6
+gen 6: fitness=1.4330 win=66.7% rank=0.94 str=95.8 vs 74.0 surv=78% ms=3.5
+gen 7: fitness=1.1059 win=50.0% rank=1.44 str=72.9 vs 85.3 surv=72% ms=4.8
+gen 8: fitness=1.3199 win=61.1% rank=1.00 str=86.9 vs 78.6 surv=72% ms=4.9
+
+re-scoring finalists on the VALIDATION mix...
+  candidate 0: val_fitness=0.7475 win=19.4% rank=1.64 str=62.5 vs 90.5
+  candidate 1: val_fitness=0.8847 win=30.6% rank=1.53 str=66.0 vs 88.7
+  candidate 2: val_fitness=1.2157 win=50.0% rank=0.92 str=90.1 vs 84.1
+  candidate 3: val_fitness=0.9916 win=38.9% rank=1.42 str=66.2 vs 79.6
+  candidate 4: val_fitness=0.8629 win=27.8% rank=1.36 str=68.2 vs 89.3
+  candidate 5: val_fitness=1.2850 win=55.6% rank=1.00 str=95.2 vs 81.6  <-- champion
+  candidate 6: val_fitness=1.0443 win=38.9% rank=1.03 str=79.7 vs 88.3
+  candidate 7: val_fitness=1.2643 win=55.6% rank=0.83 str=87.2 vs 86.1
+  candidate 8: val_fitness=0.7855 win=25.0% rank=1.83 str=65.0 vs 89.8  (hand-set baseline)
+
+champion -> results/thorest_weights.json after 273s
+{
+  "run_ahead": 1.458919989675242,
+  "run_discount": 0.7,
+  "density": 0.129959944896416,
+  "hunt": 0.3636903463335021,
+  "hunt_decay": 0.7511205861003043,
+  "exposure": 5.815493413032783,
+  "survival_bonus": 15.160453512590712,
+  "discount": 0.999,
+  "beam_width": 22,
+  "depth": 10,
+  "attack_margin": 1.056967676909363,
+  "harvest_rate": 0.8457841890125624
+}
