@@ -150,14 +150,25 @@ is a 95% confidence half-width.
 
 | bot | train | validation | holdout | survival | ms/move |
 |---|---|---|---|---|---|
-| **SUPERPAC** | **52.5%** | **71.2%** | **67.5%** | 96–98% | 5.3 |
+| **SUPERPAC** | **52.5%** | **75.0%** | **67.8%** | 97–99% | 4.2 |
 | greedy_escape | 42.5% | 61.3% | 56.2% | 95–99% | 0.05 |
 | cluster | 38.8% | 51.2% | 40.0% | 43–50% | 0.21 |
 | defensive | 26.2% | 55.0% | 45.0% | 95–96% | 0.05 |
 | greedy | 32.5% | 46.2% | 40.0% | 40–44% | 0.00 |
 
 The holdout population is bots the optimiser never saw. SUPERPAC leads there
-too, which is the result that matters.
+too, which is the result that matters. Its holdout figure is from a 360-game
+re-measurement (95% CI [61.0, 74.6]); the baselines are from 160 games each.
+
+**What the optimiser did not achieve**: 5,376 matches of evolutionary weight
+search produced *no significant win-rate improvement* over the hand-set
+defaults on either population (+1.1 points on validation, −1.1 on holdout,
+both z = ±0.23). Three separate intermediate signals said otherwise — the
+optimiser's own validation pass, the promotion duel, and a first 80-game
+benchmark that appeared to show an 8.7-point collapse. All three were noise.
+The tuned weights ship because they are better on score and survival and won
+the only variance-controlled paired comparison, not because they are proven
+better. `docs/RESULTS.md` has the full account.
 
 ### Opponent prediction quality
 

@@ -1,0 +1,12 @@
+720 games in 170s
+
+weights    population        win         95% CI   place   score    surv     n
+-----------------------------------------------------------------------------
+defaults   holdout        68.9% [62.1%,75.7%]   0.383   60.48  97.2%   180
+defaults   validation     69.4% [62.7%,76.2%]   0.428   53.59  96.7%   180
+tuned      holdout        67.8% [61.0%,74.6%]   0.400   61.21  98.3%   180
+tuned      validation     70.6% [63.9%,77.2%]   0.417   54.33  97.8%   180
+
+verdict per population (two-proportion z-test):
+  validation   tuned - defaults = +1.1 points  z=+0.23  -> no significant difference
+  holdout      tuned - defaults = -1.1 points  z=-0.23  -> no significant difference

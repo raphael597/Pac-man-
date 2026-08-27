@@ -246,7 +246,56 @@ bots it was scored against.
 | | validation win rate | placement |
 |---|---|---|
 | hand-set defaults | 78.1% | 0.31 |
-| **tuned champion** | **82.8%** | **0.22** |
+| tuned champion | 82.8% | 0.22 |
+
+### That 4.7-point gain was not real
+
+The numbers above are from the optimiser's own 64-game validation pass, and
+they do not survive a proper re-measurement. Re-running both weight sets over
+an enlarged common battery — **180 games per cell instead of 64**, same
+scenarios for both, two-proportion z-test — gives:
+
+| weights | population | win rate | 95% CI | placement | score | survival |
+|---|---|---|---|---|---|---|
+| defaults | validation | 69.4% | [62.7, 76.2] | 0.428 | 53.59 | 96.7% |
+| tuned | validation | 70.6% | [63.9, 77.2] | 0.417 | 54.33 | 97.8% |
+| defaults | holdout | **68.9%** | [62.1, 75.7] | **0.383** | 60.48 | 97.2% |
+| tuned | holdout | 67.8% | [61.0, 74.6] | 0.400 | **61.21** | **98.3%** |
+
+```
+validation   tuned - defaults = +1.1 points  z=+0.23  -> no significant difference
+holdout      tuned - defaults = -1.1 points  z=-0.23  -> no significant difference
+```
+
+**5,376 matches of evolutionary search produced no measurable improvement in
+win rate on either population.** That is the honest result, and it is worth
+stating plainly because every intermediate signal pointed the other way: the
+optimiser's own validation pass said +4.7, the promotion duel said +3.9, and
+a first 80-game benchmark appeared to show a *catastrophic* 8.7-point holdout
+collapse. All three were noise. Match outcomes in this game are variable
+enough that 64–176 games cannot resolve differences of a few points, and
+every one of those samples was small enough to say whatever it liked.
+
+The one thing that did *not* move with the sample size: score and survival
+are consistently, if slightly, better under the tuned weights on both
+populations, while win rate and placement are a coin flip.
+
+### What was shipped, and why
+
+The tuned weights, on three tie-breaks rather than on the win rate:
+
+1. They won the only **paired** comparison available. The duel harness holds
+   scenario, seat arrangement and tie-breaking randomness fixed across both
+   versions, which removes far more variance than the unpaired population
+   benchmark can. It is the more sensitive instrument even though its margin
+   is also not significant on its own.
+2. They are better on score and survival on *both* populations.
+3. Two of their largest changes have independent support from the failure
+   analysis, which was derived from completely different evidence.
+
+None of that makes the tuned weights *proven* better. It makes them not worse
+and better-motivated, which is the most that 5,376 matches can honestly
+support here.
 
 ### What it changed, and why that is interesting
 
