@@ -490,10 +490,6 @@ class MapGraph:
     def index(self, x: int, y: int) -> int:
         return y * self.width + x
 
-    def escape_routes(self, cell: int) -> int:
-        """Number of distinct ways out - the raw mobility of a cell."""
-        return self.degree[cell]
-
     def __repr__(self) -> str:  # pragma: no cover - debugging aid
         return (
             f"<MapGraph {self.width}x{self.height} walkable={len(self.cells)} "

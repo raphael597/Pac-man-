@@ -58,8 +58,21 @@ def main() -> None:
             if key not in seen:
                 seen.add(key)
                 unique.append(ind)
-        unique.sort(key=lambda i: -i.fitness)
-        finalists = unique[:8]
+        # Round-robin across generations rather than a global fitness sort,
+        # for the same reason: cross-generation fitness is not comparable.
+        by_generation: dict = {}
+        for ind in unique:
+            by_generation.setdefault(ind.generation, []).append(ind)
+        for group in by_generation.values():
+            group.sort(key=lambda i: -i.fitness)
+        finalists = []
+        rank = 0
+        while len(finalists) < 8 and any(len(g) > rank for g in by_generation.values()):
+            for generation in sorted(by_generation):
+                group = by_generation[generation]
+                if len(group) > rank and len(finalists) < 8:
+                    finalists.append(group[rank])
+            rank += 1
         if not any(f.weights == base for f in finalists):
             finalists.append(Individual(base, {"fitness": 0.0}))
 

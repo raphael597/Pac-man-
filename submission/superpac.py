@@ -321,7 +321,7 @@ class MapGraph:
         "width", "height", "n_cells", "rules",
         "passable", "cells", "neighbors", "neighbor_actions", "degree",
         "_apsp", "_apsp_rows", "_bfs_cache", "_bfs_order",
-        "dead_end_depth", "pocket_size", "escape_distance",
+        "dead_end_depth", "pocket_size", "escape_distance", "pocket_mouth",
         "is_junction", "is_corridor", "is_dead_end", "is_terminal",
         "region_of", "region_sizes", "articulation", "_max_bfs_cache",
     )
@@ -471,6 +471,46 @@ class MapGraph:
             # No junction anywhere (pure corridor / ring map): nothing to
             # escape *to*, so treat every cell as equally committed.
             self.escape_distance = array("i", bytes(4 * n))
+
+        self.pocket_mouth = self._label_pocket_mouths(peeled)
+
+    # ------------------------------------------------------------------
+    def _label_pocket_mouths(self, peeled: bytearray) -> array:
+        """For each dead-end cell, the core cell you must come back out through.
+
+        Knowing the *depth* of a pocket is not enough to judge the risk of
+        entering one: what matters is whether a rival can reach the mouth
+        before you can get back to it.  A multi-source BFS from the
+        2-connected core into the peeled tails carries that mouth's id down
+        every branch in O(V).
+
+        ``-1`` means there is no core to return to - the whole component is a
+        tree - in which case there is no sealable mouth to reason about.
+        """
+        n = self.n_cells
+        degree = self.degree
+        mouth = array("i", [-1]) * n
+        frontier: List[int] = []
+        for cell in self.cells:
+            # Seed from the 2-connected core *and* from junctions.  On a map
+            # that is entirely a tree nothing survives the peel, and seeding
+            # only from the core would name the tree's centre as every cell's
+            # mouth - far from the branch point you would actually escape
+            # through.  A junction is a real choice point either way.
+            if not peeled[cell] or degree[cell] >= 3:
+                mouth[cell] = cell
+                frontier.append(cell)
+        neighbors = self.neighbors
+        while frontier:
+            nxt: List[int] = []
+            for cell in frontier:
+                label = mouth[cell]
+                for nb in neighbors[cell]:
+                    if mouth[nb] == -1:
+                        mouth[nb] = label
+                        nxt.append(nb)
+            frontier = nxt
+        return mouth
 
     def _label_regions(self) -> None:
         """Connected-component label per cell (maps may be disjoint)."""
@@ -722,10 +762,6 @@ class MapGraph:
 
     def index(self, x: int, y: int) -> int:
         return y * self.width + x
-
-    def escape_routes(self, cell: int) -> int:
-        """Number of distinct ways out - the raw mobility of a cell."""
-        return self.degree[cell]
 
     def __repr__(self) -> str:  # pragma: no cover - debugging aid
         return (
@@ -2515,21 +2551,27 @@ class TerritoryAnalysis:
     def opponent_crowding(self) -> float:
         """How much the *rivals* are stepping on each other's toes.
 
-        High crowding is an invitation to harvest elsewhere in peace, which is
-        the multiplayer insight from section 32: not every interaction is
-        about us.
+        Section 32's point is that not every interaction on the board is about
+        us: if two rivals are converging on the same region they will contest
+        it with each other, and the best reply is often to harvest somewhere
+        else entirely rather than join a three-way fight.
+
+        Returns roughly 0 when rivals are spread across the map and approaches
+        1 when they are on top of each other.
         """
-        rows = list(self.opp_dists.values())
-        if len(rows) < 2:
+        players = list(self.opp_dists)
+        if len(players) < 2:
             return 0.0
-        near = 0
-        for i in range(len(rows)):
-            for j in range(i + 1, len(rows)):
-                pos_j = self.state.positions[list(self.opp_dists.keys())[j]]
-                d = rows[i][pos_j]
+        total = 0.0
+        pairs = 0
+        for i, a in enumerate(players):
+            row = self.opp_dists[a]
+            for b in players[i + 1:]:
+                pairs += 1
+                d = row[self.state.positions[b]]
                 if d < UNREACHABLE:
-                    near += 1.0 / (1.0 + d)
-        return near / max(1, len(rows) * (len(rows) - 1) / 2)
+                    total += 1.0 / (1.0 + d)
+        return total / pairs if pairs else 0.0
 
     # ------------------------------------------------------------------
     def clusters(self, radius: int = 3, limit: int = 14) -> List["FoodCluster"]:
@@ -2722,9 +2764,6 @@ class ThreatMap:
                 count += 1
         return count
 
-    def total_threat(self) -> float:
-        return sum(self.immediate.values())
-
     def describe(self, top: int = 5) -> str:  # pragma: no cover - diagnostics
         graph = self.state.graph
         hottest = sorted(self.immediate.items(), key=lambda kv: -kv[1])[:top]
@@ -2766,11 +2805,21 @@ class Weights:
     """Immediate pellet under our feet."""
     food_potential: float = 5.5
     """Discounted value of the best food-collecting walk from a cell."""
-    territory: float = 2.2
-    """Share of contested food we expect to win."""
-    cluster: float = 1.4
+    territory: float = 0.5
+    """How deep inside our own uncontested region a cell sits.
+
+    Distinct from ``food_potential`` (which values food regardless of who
+    owns the ground) and from ``danger`` (which prices immediate collision,
+    not regional control).  This is the "find a quiet corner and harvest in
+    peace" term from section 32.
+    """
+    cluster: float = 0.3
     mobility: float = 2.6
     """Escape routes.  Cheap insurance that repeatedly pays for itself."""
+    # Note on ``cluster``/``territory``/``intercept``: hand-picked values for
+    # these measured *worse* than switching them off (see docs/RESULTS.md), so
+    # they start small and the optimiser decides whether they earn their keep.
+    # Intuition is not evidence - section 42 of the brief is explicit about it.
     open_space: float = 0.9
     denial: float = 0.8
     """Value of taking food a rival wanted."""
@@ -2778,8 +2827,6 @@ class Weights:
     """Deliberately zero by default - see the benchmark note in the README."""
     information: float = 0.35
     """Active-learning bonus, annealed away as the game gets decisive."""
-    progress: float = 0.55
-    """Rewards closing distance on the current objective."""
 
     # --- risk -----------------------------------------------------------
     death: float = 260.0
@@ -2813,6 +2860,13 @@ class Weights:
     @classmethod
     def from_vector(cls, vector: Sequence[float]) -> "Weights":
         names = [f.name for f in fields(cls)]
+        if len(vector) != len(names):
+            # zip() would silently truncate and hand back a plausible-looking
+            # but wrong weight set - exactly the sort of bug that surfaces as
+            # "the tuned version is somehow worse than the defaults".
+            raise ValueError(
+                f"weight vector has {len(vector)} entries, expected {len(names)}; "
+                "it was probably saved by an older build - re-run the optimiser")
         kwargs = {}
         for name, value in zip(names, vector):
             declared = cls.__dataclass_fields__[name].type
@@ -2832,6 +2886,11 @@ class Weights:
 
 DEFAULT_WEIGHTS = Weights()
 
+#: Minimum value of a pellet in the potential field, however contested.  Keeps
+#: a gradient toward food alive when every pellet looks lost - see the comment
+#: in :meth:`TurnFields._build_potential`.
+FOOD_REWARD_FLOOR = 0.06
+
 
 # --------------------------------------------------------------------------
 class TurnFields:
@@ -2843,7 +2902,8 @@ class TurnFields:
 
     __slots__ = ("state", "graph", "weights", "territory", "threat",
                  "food_potential", "food_dist", "recent", "n_food",
-                 "opponent_potential")
+                 "opponent_potential", "_score_cache", "cluster_field",
+                 "intercept_field")
 
     def __init__(self, state: GameState, territory: TerritoryAnalysis,
                  threat: ThreatMap, weights: Weights,
@@ -2855,9 +2915,19 @@ class TurnFields:
         self.threat = threat
         self.recent = recent or {}
         self.n_food = len(state.food)
+        # The beam re-scores the same (cell, depth) pairs thousands of times
+        # per turn while sorting.  Profiling put 2.0 s of a 11 s run in this
+        # one function; memoising it per turn removed almost all of that.
+        # The cache is per-TurnFields and TurnFields is rebuilt every turn, so
+        # it can never go stale.
+        self._score_cache: Dict[int, float] = {}
         self.food_potential = self._build_potential(weights.potential_discount)
         self.food_dist = (state.graph.multi_source_distances(state.food)
                           if state.food else None)
+        self.cluster_field = (self._build_cluster_field()
+                              if weights.cluster > 0 else None)
+        self.intercept_field = (self._build_intercept_field()
+                                if weights.intercept > 0 else None)
 
     # ------------------------------------------------------------------
     def _build_potential(self, gamma: float) -> array:
@@ -2879,7 +2949,20 @@ class TurnFields:
         n = graph.n_cells
         reward = [0.0] * n
         for cell in self.state.food:
-            reward[cell] = self.territory.win_probability(cell)
+            # A pellet a rival will probably reach first is worth little - but
+            # never literally nothing.  Rivals do not play optimally, which is
+            # the same reasoning that made ``win_probability`` a soft logistic
+            # rather than a hard comparison; a hard zero here contradicts it.
+            #
+            # It also matters concretely at the end of a match.  With every
+            # remaining pellet nominally "denied", a zero reward flattens this
+            # field completely, the planner finds no gradient anywhere, and
+            # SUPERPAC idles out the clock while trailing - observed at turn
+            # 169 of a real match, bouncing between two cells with two pellets
+            # still on the board.  Losing by one while contesting is no worse
+            # than losing by one while standing still, and it might not lose.
+            reward[cell] = max(FOOD_REWARD_FLOOR,
+                               self.territory.win_probability(cell))
 
         values = array("f", bytes(4 * n))
         for cell in graph.cells:
@@ -2907,17 +2990,99 @@ class TurnFields:
         return values
 
     # ------------------------------------------------------------------
+    def _build_cluster_field(self):
+        """Pull toward dense, winnable pockets of food (brief section 7).
+
+        The food-potential field values the best *walk*; this values the best
+        *destination*.  They differ where a long corridor of single pellets
+        scores about the same as a tight pocket worth several - the cluster
+        field breaks that tie toward the pocket, which pays off because a
+        pocket is collected with fewer wasted steps.
+
+        One cached BFS per cluster centre over a handful of clusters, so it
+        stays affordable.
+        """
+        clusters = self.territory.clusters()
+        if not clusters:
+            return None
+        n = self.graph.n_cells
+        field = array("f", bytes(4 * n))
+        for cluster in clusters[:5]:
+            row = self.graph.distances_from(cluster.centre)
+            value = cluster.value
+            for cell in self.graph.cells:
+                d = row[cell]
+                if d >= UNREACHABLE:
+                    continue
+                contribution = value * (0.86 ** d)
+                if contribution > field[cell]:
+                    field[cell] = contribution
+        return field
+
+    def _build_intercept_field(self):
+        """Value of standing where a rival is predicted to arrive (section 24).
+
+        Under the default Highlander reading, contact kills *both* parties, so
+        body-blocking is mutual destruction: this field is correctly empty
+        there, because the danger term already prices those cells and adding a
+        reward on top would simply cancel it out.  Interception is only worth
+        anything where we would survive the exchange - a ``higher_score``
+        ruleset while we are ahead, or a ruleset where contact is harmless and
+        blocking is pure denial.
+
+        Whether that narrow case earns a weight at all is a question for the
+        benchmark rather than for intuition, which is why the term exists and
+        the weight starts at zero instead of being hard-coded either way.
+        """
+        rules = self.state.rules
+        survivable = (not rules.contact_is_lethal) or (
+            rules.head_on_resolution == "higher_score"
+            and self.state.score_gap() > 0)
+        if not survivable:
+            return None
+        n = self.graph.n_cells
+        field = array("f", bytes(4 * n))
+        for frames in self.threat.opponent_frames.values():
+            for t, frame in enumerate(frames):
+                decay = 0.75 ** t
+                for cell, p in frame.items():
+                    contribution = p * decay
+                    if contribution > field[cell]:
+                        field[cell] = contribution
+        return field
+
     def positional_score(self, cell: int, depth: int = 0) -> float:
         """Static desirability of standing on ``cell`` (no food reward here).
 
         Food collected along a path is credited by the planner as it happens;
         this is the *positional* half of the evaluation.
         """
+        key = cell * 16 + (depth if depth < 15 else 15)
+        cached = self._score_cache.get(key)
+        if cached is not None:
+            return cached
+        value = self._positional_score(cell, depth)
+        self._score_cache[key] = value
+        return value
+
+    def _positional_score(self, cell: int, depth: int) -> float:
         w = self.weights
         graph = self.graph
         score = 0.0
 
         score += w.food_potential * self.food_potential[cell]
+        # Regional control: how far the nearest rival is from this cell, as a
+        # proxy for how much of the surrounding ground is uncontested.  Capped
+        # because beyond a dozen steps "safe" stops getting meaningfully safer.
+        rival_reach = self.territory.opp_min[cell]
+        if rival_reach < UNREACHABLE:
+            score += w.territory * min(rival_reach, 12) * 0.08
+        else:
+            score += w.territory * 0.96
+        if self.cluster_field is not None:
+            score += w.cluster * self.cluster_field[cell]
+        if self.intercept_field is not None:
+            score += w.intercept * self.intercept_field[cell]
         score += w.mobility * _mobility_value(graph, cell)
         score += w.open_space * min(4, graph.degree[cell]) * 0.25
 
@@ -2926,18 +3091,51 @@ class TurnFields:
         score -= w.danger * self.threat.at(cell, t)
         score -= w.contest * self.territory.contest_score(cell)
 
-        # Dead ends: cost scales with how deep the pocket is and how much
-        # pressure is on it.  An empty pocket with a rival nearby is a grave.
+        # Dead ends cost by how deep the pocket is and how much pressure is
+        # on it; the trap term below prices the thing that actually kills you.
         depth_penalty = graph.dead_end_depth[cell]
         if depth_penalty:
             exposure = 1.0 + 2.0 * self.threat.pressure(cell)
             score -= w.dead_end * math.log1p(depth_penalty) * exposure
+            score -= w.trap * self.trap_risk(cell, depth)
 
         if cell in self.recent:
             score -= w.stagnation * self.recent[cell]
         return score
 
     # ------------------------------------------------------------------
+    def trap_risk(self, cell: int, depth: int = 0) -> float:
+        """Probability that entering ``cell`` gets us sealed in (section 31).
+
+        Pocket depth alone is the wrong signal - a ten-cell pocket with every
+        rival on the far side of the map is perfectly safe, and a two-cell one
+        with a rival at its mouth is fatal.  What matters is the *race*: we
+        must travel ``escape_distance`` to get back to the mouth, and a rival
+        must travel however far it is from that same mouth.  Lose the race and
+        we are choosing between walking into it and starving in the pocket.
+
+        ``depth`` is how many plies into the search this cell sits, which is
+        also how many steps the rivals have had to close in - so their head
+        start shrinks as we look further ahead.
+        """
+        graph = self.graph
+        if not graph.is_dead_end[cell]:
+            return 0.0
+        mouth = graph.pocket_mouth[cell]
+        if mouth < 0:
+            return 0.0
+        rival_time = self.territory.opp_min[mouth]
+        if rival_time >= UNREACHABLE:
+            return 0.0
+        my_time = graph.escape_distance[cell]
+        # Rivals have already spent ``depth`` steps closing while we searched.
+        margin = (rival_time - depth) - my_time
+        if margin > 6:
+            return 0.0
+        if margin < -6:
+            return 1.0
+        return 1.0 / (1.0 + math.exp(margin / 1.5))
+
     def step_reward(self, cell: int, eaten: frozenset) -> float:
         """Reward for arriving at ``cell`` given what we already ate."""
         if cell in self.state.food and cell not in eaten:
@@ -3091,6 +3289,14 @@ class StrategyManager:
         if confidence > 0.62 and gap < 0 and share_of_contest > 0.30:
             self.reason = f"rivals predictable ({confidence:.2f}) and we trail"
             return self._settle(Mode.DENIAL)
+
+        # Rivals crowding each other is an opportunity, not a threat: they
+        # will contest that ground between themselves while we farm elsewhere
+        # (section 32).  Only worth acting on when we are not in the scrum.
+        crowding = territory.opponent_crowding()
+        if crowding > 0.22 and local_threat < 0.5 and len(state.opponents()) >= 2:
+            self.reason = f"rivals crowding each other ({crowding:.2f}) - harvest elsewhere"
+            return self._settle(Mode.HARVEST)
 
         if share_of_contest > 0.55:
             self.reason = f"{share_of_contest:.0%} of food contested"
@@ -4353,14 +4559,13 @@ def _selftest() -> None:
 TUNED_WEIGHTS = {
     "food": 12.0,
     "food_potential": 5.5,
-    "territory": 2.2,
-    "cluster": 1.4,
+    "territory": 0.5,
+    "cluster": 0.3,
     "mobility": 2.6,
     "open_space": 0.9,
     "denial": 0.8,
     "intercept": 0.0,
     "information": 0.35,
-    "progress": 0.55,
     "death": 260.0,
     "danger": 9.0,
     "contest": 1.1,

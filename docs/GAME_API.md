@@ -165,7 +165,7 @@ strategy layer never see a host object or a rule constant — they read
 | 8–17 opponent modelling | as specified, plus fixed-share weighting so a mid-match strategy switch is recoverable |
 | 18–20 forecasts, scenarios, robust decisions | as specified; scenarios are *enumerated* top-K rather than sampled (deterministic, no sampling noise) |
 | 21–23 threat, contest, turn order | as specified; threat lives in `ai/threat.py` rather than inside the evaluator |
-| 24 interception | implemented as a weight, **left at zero by default** — it did not pay for itself in benchmarks (section 56 says delete what does not measure) |
+| 24 interception | implemented, but **defaults to zero and returns an empty field under Highlander rules**: contact kills both parties, so body-blocking is mutual destruction and the danger term already prices those cells. It activates only where we would survive the exchange (`higher_score` while ahead, or non-lethal contact). The weight is in the optimiser's search space rather than settled by intuition |
 | 25–27 exploitation, active learning, randomness detection | as specified |
 | 28–32 strategy, survival, mobility, dead ends, multiplayer | as specified; dead-end handling extended from *depth* to the **race for the pocket mouth**, which is what actually decides whether a pocket is a trap |
 | 33–37 evaluation, search, anytime, performance, fallback | as specified |

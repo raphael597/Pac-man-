@@ -387,3 +387,43 @@ class TestFullMatch(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestMultiplayerAwareness(unittest.TestCase):
+    """Section 32: not every interaction on the board is about us."""
+
+    ARENA = ["###########",
+             "#.........#",
+             "#.#######.#",
+             "#.........#",
+             "###########"]
+
+    def _crowding(self, rival_cells):
+        graph = graph_from_lines(self.ARENA)
+        state = GameState(graph, [graph.index(5, 1)],
+                          [graph.index(1, 1)] + [graph.index(x, y)
+                                                 for x, y in rival_cells])
+        return TerritoryAnalysis(state).opponent_crowding()
+
+    def test_crowding_tracks_how_close_rivals_are_to_each_other(self):
+        adjacent = self._crowding([(8, 3), (9, 3)])
+        spread = self._crowding([(5, 3), (9, 3)])
+        opposite = self._crowding([(9, 1), (1, 3)])
+        self.assertGreater(adjacent, spread)
+        self.assertGreater(spread, opposite)
+        self.assertEqual(self._crowding([(9, 3)]), 0.0,
+                         "one rival cannot crowd anybody")
+
+    def test_crowded_rivals_send_us_off_to_harvest(self):
+        graph = graph_from_lines(self.ARENA)
+        # Two rivals on top of each other at the far end, us safely away.
+        state = GameState(graph, [graph.index(3, 1), graph.index(2, 3)],
+                          [graph.index(1, 1), graph.index(8, 3), graph.index(9, 3)])
+        state.turn = 100
+        registry = OpponentRegistry()
+        registry.update(state)
+        threat = ThreatMap(state, registry.forecast_all(state, 4), 4)
+        manager = StrategyManager(Weights())
+        mode = manager.select(state, TerritoryAnalysis(state), threat, 0.5)
+        self.assertEqual(mode, Mode.HARVEST)
+        self.assertIn("crowding", manager.reason)

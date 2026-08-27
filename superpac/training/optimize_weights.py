@@ -185,6 +185,8 @@ class Individual:
     weights: Weights
     train: Optional[Dict[str, float]] = None
     validation: Optional[Dict[str, float]] = None
+    generation: int = -1
+    """Which generation produced this - fitness only compares within one."""
 
     @property
     def fitness(self) -> float:
@@ -234,7 +236,16 @@ def evolve(generations: int = 6, population_size: int = 12,
             f"win={best.train['win_rate']:.1%} place={best.train['placement']:.2f} "
             f"ms={best.train['ms']:.2f}")
 
-        history.extend(population[:elite])
+        # Fitness is NOT comparable across generations: each one draws a
+        # fresh scenario battery (deliberately, so the search cannot overfit a
+        # fixed set of maps).  Pooling every elite and taking the global top-N
+        # by raw fitness would therefore just select whichever generation drew
+        # the easiest maps.  Keeping the best few *per generation* makes the
+        # finalist pool a fair cross-section; the validation re-scoring at the
+        # end then compares them all on one common battery.
+        for ind in population[:max(2, elite // 2)]:
+            ind.generation = generation
+            history.append(ind)
         if champion is None or best.fitness > champion.fitness:
             champion = Individual(best.weights, best.train)
 

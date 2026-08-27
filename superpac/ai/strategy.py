@@ -132,6 +132,14 @@ class StrategyManager:
             self.reason = f"rivals predictable ({confidence:.2f}) and we trail"
             return self._settle(Mode.DENIAL)
 
+        # Rivals crowding each other is an opportunity, not a threat: they
+        # will contest that ground between themselves while we farm elsewhere
+        # (section 32).  Only worth acting on when we are not in the scrum.
+        crowding = territory.opponent_crowding()
+        if crowding > 0.22 and local_threat < 0.5 and len(state.opponents()) >= 2:
+            self.reason = f"rivals crowding each other ({crowding:.2f}) - harvest elsewhere"
+            return self._settle(Mode.HARVEST)
+
         if share_of_contest > 0.55:
             self.reason = f"{share_of_contest:.0%} of food contested"
             return self._settle(Mode.TERRITORY)

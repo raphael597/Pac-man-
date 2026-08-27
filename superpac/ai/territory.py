@@ -158,21 +158,27 @@ class TerritoryAnalysis:
     def opponent_crowding(self) -> float:
         """How much the *rivals* are stepping on each other's toes.
 
-        High crowding is an invitation to harvest elsewhere in peace, which is
-        the multiplayer insight from section 32: not every interaction is
-        about us.
+        Section 32's point is that not every interaction on the board is about
+        us: if two rivals are converging on the same region they will contest
+        it with each other, and the best reply is often to harvest somewhere
+        else entirely rather than join a three-way fight.
+
+        Returns roughly 0 when rivals are spread across the map and approaches
+        1 when they are on top of each other.
         """
-        rows = list(self.opp_dists.values())
-        if len(rows) < 2:
+        players = list(self.opp_dists)
+        if len(players) < 2:
             return 0.0
-        near = 0
-        for i in range(len(rows)):
-            for j in range(i + 1, len(rows)):
-                pos_j = self.state.positions[list(self.opp_dists.keys())[j]]
-                d = rows[i][pos_j]
+        total = 0.0
+        pairs = 0
+        for i, a in enumerate(players):
+            row = self.opp_dists[a]
+            for b in players[i + 1:]:
+                pairs += 1
+                d = row[self.state.positions[b]]
                 if d < UNREACHABLE:
-                    near += 1.0 / (1.0 + d)
-        return near / max(1, len(rows) * (len(rows) - 1) / 2)
+                    total += 1.0 / (1.0 + d)
+        return total / pairs if pairs else 0.0
 
     # ------------------------------------------------------------------
     def clusters(self, radius: int = 3, limit: int = 14) -> List["FoodCluster"]:

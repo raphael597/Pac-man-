@@ -117,9 +117,6 @@ class ThreatMap:
                 count += 1
         return count
 
-    def total_threat(self) -> float:
-        return sum(self.immediate.values())
-
     def describe(self, top: int = 5) -> str:  # pragma: no cover - diagnostics
         graph = self.state.graph
         hottest = sorted(self.immediate.items(), key=lambda kv: -kv[1])[:top]

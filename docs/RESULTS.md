@@ -107,20 +107,49 @@ Recorded because section 56 asks for measurable performance over complexity,
 and because a benchmark that only ever confirms your ideas is not being read
 honestly.
 
-**Hand-picked `cluster` and `territory` weights made SUPERPAC worse.** A
-version-vs-version duel (identical scenarios, both versions in every seat)
-between the terms switched off and the terms at my intuited values:
+**The duel harness was biased, and it produced a wrong conclusion before
+anyone noticed.** This is the most important entry on this page.
 
-| version | win rate | placement | games |
-|---|---|---|---|
-| terms off | **28.6%** | 1.429 | 56 |
-| cluster=1.4, territory=2.2 | 19.6% | 1.411 | 56 |
+A version-vs-version duel between the `cluster`/`territory` terms switched off
+and the same terms at my hand-picked values came out 28.6% against 19.6% over
+56 games, and was written up as "the intuited values hurt". Then the harness
+was sanity-checked by running it on two configurations with *identical*
+weights, which must tie by construction. It reported **26.4% against 16.7%**.
 
-That gap is inside the confidence interval for 56 games, so it is suggestive
-rather than conclusive — but it is certainly no evidence *for* the values I
-picked. The terms were left in with small defaults and handed to the
-optimiser, which searches `cluster` over [0, 5] and `territory` over [0, 8]
-and is free to zero them.
+The bug was in `head_to_head`. It rotated both entrants through every seat,
+which looks sufficient — but with A always in `seat_a` and B always in
+`seat_a + 1`, the other players end up arranged differently around each
+entrant. Two byte-identical `GreedyFoodBot`s with non-identical fillers came
+out **10.9 percentage points apart**:
+
+| bot | win rate | placement |
+|---|---|---|
+| A (GreedyFoodBot) | 28.1% | 1.562 |
+| B (GreedyFoodBot, byte-identical) | 17.2% | 1.688 |
+
+That is larger than any real version improvement would produce, so every
+version-vs-version measurement taken with it was measuring seat luck.
+
+An earlier check had "passed" because it used four identical bots — which tie
+trivially and prove nothing about seat balance. The regression test now
+deliberately uses distinct, differently-skilled fillers.
+
+**The fix**: play every arrangement twice with the two entrants swapped and
+nothing else changed, so positional advantage is handed to each exactly once
+and cancels identically rather than approximately. Byte-identical bots now tie
+to the last digit on win rate, placement *and* total score (`n = 128`).
+
+**A second fix**: `version_duel` now zeroes `explore_epsilon` on both sides.
+With SUPERPAC's tie-breaking randomness live, identical weight vectors still
+came out 21.9% against 26.6%. That is common random numbers applied one level
+deeper than the scenario battery, and without it a duel of this size cannot
+detect anything smaller than the noise.
+
+**The honest status of `cluster` and `territory`**: unknown. The measurement
+that appeared to condemn them was invalid. They ship with small defaults and
+are handed to the optimiser, which searches `cluster` over [0, 5] and
+`territory` over [0, 8] and is free to zero them if they do not earn their
+place.
 
 **Interception is nearly worthless under Highlander rules**, and the code now
 says so explicitly rather than implementing a term that cancels itself out.
