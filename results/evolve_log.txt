@@ -1,1 +1,2 @@
 gen 0: best fitness=1.0525 win=68.8% place=0.44 ms=4.54
+gen 1: best fitness=1.0600 win=68.8% place=0.44 ms=5.47
