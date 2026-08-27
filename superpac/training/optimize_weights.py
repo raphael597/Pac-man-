@@ -54,6 +54,7 @@ BOUNDS: Dict[str, Tuple[float, float]] = {
     "potential_discount": (0.60, 0.94),
     "risk_aversion": (0.0, 0.95),
     "territory_softness": (0.6, 3.5),
+    "endgame_lead_ratio": (0.0, 1.5),
     "explore_epsilon": (0.0, 0.12),
 }
 

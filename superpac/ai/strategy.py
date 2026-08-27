@@ -110,9 +110,20 @@ class StrategyManager:
 
         # --- endgame ---------------------------------------------------
         if progress >= self.endgame_at:
-            if gap > 0:
-                self.reason = f"ahead by {gap:.1f} at {progress:.0%}"
+            # A lead is only worth protecting when the food still on the board
+            # cannot overturn it.  Treating every lead as safe meant playing
+            # for survival while a greedy rival simply out-collected us -
+            # failure analysis attributed 14% of all losses to exactly that,
+            # with SUPERPAC never once in danger of elimination.
+            live_points = len(state.food) * state.rules.food_value
+            safe_margin = max(1.0, self.base.endgame_lead_ratio * live_points)
+            if gap >= safe_margin:
+                self.reason = f"lead of {gap:.1f} is safe vs {live_points:.0f} left"
                 return self._settle(Mode.ENDGAME_LEADING)
+            if gap > 0:
+                self.reason = (f"ahead by {gap:.1f} but {live_points:.0f} still "
+                               f"on the board - keep collecting")
+                return self._settle(Mode.HARVEST)
             self.reason = f"behind by {-gap:.1f} at {progress:.0%}"
             return self._settle(Mode.ENDGAME_TRAILING)
 

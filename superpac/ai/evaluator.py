@@ -80,6 +80,14 @@ class Weights:
     risk_aversion: float = 0.55
     """How hard to penalise the bad tail across scenarios (section 20)."""
     territory_softness: float = 1.4
+    endgame_lead_ratio: float = 0.5
+    """How safe a late-game lead must be before we switch to protecting it.
+
+    Expressed as a fraction of the food still on the board: a lead of 3 with
+    20 points still available is not a lead, it is a coin flip.  Setting this
+    to 0 reproduces the old behaviour of protecting *any* lead, which failure
+    analysis showed was losing 14% of games to endgame collapse.
+    """
     beam_width: int = 12
     max_depth: int = 6
     forecast_horizon: int = 4

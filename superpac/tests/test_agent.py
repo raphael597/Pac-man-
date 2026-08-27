@@ -215,20 +215,44 @@ class TestStrategy(unittest.TestCase):
         mode = manager.select(state, TerritoryAnalysis(state), threat, 0.5)
         self.assertNotEqual(mode, Mode.SURVIVAL)
 
-    def test_endgame_mode_follows_the_score(self):
+    def _endgame(self, scores, food_left):
         state = sample_state(1)
         state.turn = int(state.rules.max_turns * 0.9)
+        state.scores = list(scores)
+        keep = list(state.food)[:food_left]
+        state.food = set(keep)
         registry = OpponentRegistry(); registry.update(state)
         threat = ThreatMap(state, registry.forecast_all(state, 2), 2)
-        territory = TerritoryAnalysis(state)
         manager = StrategyManager(Weights())
+        mode = manager.select(state, TerritoryAnalysis(state), threat, 0.5)
+        return mode, manager
 
-        state.scores = [50.0, 1.0, 1.0, 1.0]
-        self.assertEqual(manager.select(state, territory, threat, 0.5),
+    def test_trailing_late_switches_to_endgame_trailing(self):
+        mode, _ = self._endgame([1.0, 50.0, 1.0, 1.0], food_left=40)
+        self.assertEqual(mode, Mode.ENDGAME_TRAILING)
+
+    def test_a_lead_bigger_than_the_food_left_is_protected(self):
+        mode, manager = self._endgame([50.0, 1.0, 1.0, 1.0], food_left=4)
+        self.assertEqual(mode, Mode.ENDGAME_LEADING)
+        self.assertIn("safe", manager.reason)
+
+    def test_a_lead_the_remaining_food_could_overturn_keeps_collecting(self):
+        # Ahead by 6 with 40 pellets still on the board: playing safe here
+        # just lets a greedy rival out-collect us, which failure analysis
+        # showed was losing 14% of games.
+        mode, manager = self._endgame([20.0, 14.0, 1.0, 1.0], food_left=40)
+        self.assertEqual(mode, Mode.HARVEST)
+        self.assertIn("still", manager.reason)
+
+    def test_lead_ratio_zero_reproduces_the_old_always_protect_behaviour(self):
+        state = sample_state(1)
+        state.turn = int(state.rules.max_turns * 0.9)
+        state.scores = [20.0, 14.0, 1.0, 1.0]
+        registry = OpponentRegistry(); registry.update(state)
+        threat = ThreatMap(state, registry.forecast_all(state, 2), 2)
+        manager = StrategyManager(Weights().with_(endgame_lead_ratio=0.0))
+        self.assertEqual(manager.select(state, TerritoryAnalysis(state), threat, 0.5),
                          Mode.ENDGAME_LEADING)
-        state.scores = [1.0, 50.0, 1.0, 1.0]
-        self.assertEqual(manager.select(state, territory, threat, 0.5),
-                         Mode.ENDGAME_TRAILING)
 
     def test_trailing_endgame_accepts_more_variance(self):
         manager = StrategyManager(Weights())

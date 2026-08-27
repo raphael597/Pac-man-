@@ -204,12 +204,43 @@ SUPERPAC is not tuned to one reading of the rules. Win rates under each
 ### Timing
 
 Budget is 62% of the host's stated limit (`TIME_SAFETY`), with an anytime
-search that always holds a valid answer. On a 100 ms limit: **5.3 ms mean,
-9.4 ms worst observed**, zero faults, zero timeouts across every benchmark run.
+search that always holds a valid answer. On a 100 ms limit: **3.4 ms mean,
+4.4 ms worst observed** in the shipped single-file build, zero faults, zero
+timeouts across every benchmark run. Profiling drove a 24% cut in turn time by
+memoising position scores the beam was recomputing thousands of times per turn
+(`docs/RESULTS.md`).
+
 The headroom is deliberate — a tournament machine may be slower than this one,
 and a timed-out turn is worth less than a mediocre move.
 
+## A note on the measurements
+
+One entry in `docs/RESULTS.md` matters more than the win rates: **the duel
+harness was biased, and it produced a wrong conclusion before it was caught.**
+Rotating two entrants through every seat is not enough to make a comparison
+fair — the other players end up arranged differently around each — and two
+byte-identical bots came out 10.9 percentage points apart. A conclusion had
+already been drawn and written down from that harness.
+
+It was found by asking the harness something whose answer was known in
+advance: compare a configuration against *itself*. It should tie; it did not.
+That check is now a test, and it deliberately uses distinct fillers, because
+the earlier version used four identical bots — which tie trivially and prove
+nothing about seat balance.
+
+Where a result here is uncertain, it says so. Three weights ship at small
+defaults with their value marked **unknown** rather than claimed, because the
+only measurement that spoke to them was taken with the broken harness.
+
 ---
+
+## Documentation
+
+| file | what is in it |
+|---|---|
+| `docs/GAME_API.md` | what the API sniffer handles, and the exact procedure for re-targeting when the teacher's files arrive |
+| `docs/RESULTS.md` | every measurement, including the three that went against the design and the one that was wrong |
+| `docs/ROADMAP.md` | what was built per phase, what was deliberately not built, and what to do next |
 
 ## Layout
 
@@ -223,7 +254,8 @@ superpac/
   bots/       13 baseline opponents spanning deterministic to stochastic
   training/   benchmarks, weight optimiser, adversarial search, self-play
   tests/      82 tests
-scripts/      bench.py, evolve.py, adversarial.py, build_submission.py
+scripts/      bench.py, evolve.py, adversarial.py, build_submission.py,
+              profile_agent.py, demo.py
 submission/   superpac.py - the single-file tournament build
 ```
 
@@ -241,6 +273,9 @@ python scripts/evolve.py --generations 10             # tune weights
 python scripts/adversarial.py --rounds 32             # hunt for counter-strategies
 python scripts/build_submission.py                    # -> submission/superpac.py
 python submission/superpac.py                         # self-test the bundle
+
+python scripts/demo.py --turns 3                      # watch it think
+python scripts/profile_agent.py                       # per-phase timing
 ```
 
 ## The submission

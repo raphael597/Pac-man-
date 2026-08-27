@@ -176,6 +176,64 @@ arrival time at that mouth. Measured effect on a pocket cell: risk 0.34 with a
 rival near the mouth versus 0.21 with it far away, moving the cell's score by
 4.7 points.
 
+## Failure analysis
+
+`superpac/training/failure_analysis.py` replays matches with SUPERPAC
+instrumented and sorts each loss into a category that points at a subsystem.
+Over 14 games against the validation population:
+
+| outcome | count | share |
+|---|---|---|
+| WIN | 11 | 78.6% |
+| endgame_collapse | 2 | 14.3% |
+| territory_loss | 1 | 7.1% |
+
+The striking part is what is *absent*: **not one loss came from being
+eliminated.** Survival is solved. Every loss is on points, and the largest
+category is being ahead at the three-quarter mark and losing anyway:
+
+```
+game 6: endgame_collapse (place 1, score 70 vs 76, conf 0.72, acc 0.91,
+                          survival turns 0)
+```
+
+Prediction was 91% accurate and SUPERPAC was never once in danger. It simply
+got out-collected. That points at the weights rather than the models: at 100%
+survival, the moves spent on mobility and danger avoidance are moves a greedy
+rival spends on food.
+
+### The fix that did not work (yet)
+
+The first hypothesis was that `ENDGAME_LEADING` was too conservative — it
+protected *any* late lead, however fragile. Lead protection is now
+proportional: a lead only justifies playing safe when the food still on the
+board cannot overturn it, and `endgame_lead_ratio` (0 reproduces the old
+behaviour exactly) is in the optimiser's search space.
+
+Measured on 176 games with the mirrored-pair harness and `explore_epsilon`
+zeroed on both sides:
+
+| version | win rate | placement | score |
+|---|---|---|---|
+| protect any lead (old) | 25.0% | 1.472 | 32.51 |
+| protect only a safe lead (new) | **26.7%** | **1.455** | **32.64** |
+
+Better on all three metrics, and by nothing like enough: 1.7 points on 176
+games has a standard error around 3.3, so this is inside the noise. The
+promotion gate correctly refused it. The failure profile after the change was
+identical — still two endgame collapses out of fourteen.
+
+So the change ships as a *tunable with a defensible default*, not as a proven
+improvement. "Protect a lead only when the remaining food cannot overturn it"
+is better specified than "protect any lead", and if it is wrong the optimiser
+can set the ratio to zero and get the old behaviour back exactly.
+
+The real remedy is almost certainly weight tuning — `death` at 260 and
+`danger` at 9 are priced for a risk that, at 100% survival, is not being
+taken. That is what the evolutionary search exists to settle, and it is the
+right tool for it: hand-tweaking one more constant here would just be another
+untested intuition.
+
 ## Performance
 
 `python scripts/profile_agent.py`
