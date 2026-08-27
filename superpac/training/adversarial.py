@@ -81,7 +81,13 @@ class LeagueMember:
     factory: Callable[[], object]
     origin: str = "seed"
     """``seed`` | ``counter`` - how this member joined."""
-    superpac_win_rate: float = 0.0
+    superpac_win_rate: Optional[float] = None
+    """``None`` until this member has actually been played against.
+
+    Deliberately not 0.0: an unscored member displaying as "superpac_win=0.0%"
+    reads exactly like a member SUPERPAC never beats, which is the opposite of
+    the truth for the seed population.
+    """
     added_round: int = 0
 
     def entry(self) -> Entry:
@@ -106,13 +112,20 @@ class League:
         return [m.entry() for m in self.members]
 
     def hardest(self, top: int = 5) -> List[LeagueMember]:
-        return sorted(self.members, key=lambda m: m.superpac_win_rate)[:top]
+        scored = [m for m in self.members if m.superpac_win_rate is not None]
+        return sorted(scored, key=lambda m: m.superpac_win_rate)[:top]
 
     def summary(self) -> str:
-        lines = [f"league: {len(self.members)} members"]
-        for member in sorted(self.members, key=lambda m: m.superpac_win_rate):
+        scored = [m for m in self.members if m.superpac_win_rate is not None]
+        unscored = [m for m in self.members if m.superpac_win_rate is None]
+        lines = [f"league: {len(self.members)} members "
+                 f"({len(scored)} scored, {len(unscored)} not yet played)"]
+        for member in sorted(scored, key=lambda m: m.superpac_win_rate):
             lines.append(f"  {member.name:<42s} superpac_win={member.superpac_win_rate:6.1%} "
                          f"({member.origin}, round {member.added_round})")
+        for member in unscored:
+            lines.append(f"  {member.name:<42s} superpac_win=     - "
+                         f"({member.origin}, not yet played)")
         return "\n".join(lines)
 
 

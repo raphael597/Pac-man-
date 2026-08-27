@@ -34,7 +34,8 @@ def main() -> None:
     weights = (load_weights(args.weights)
                if os.path.exists(args.weights) else Weights())
     print(f"searching {args.rounds} adversary configurations "
-          f"({args.games} games each, {args.games * 4} matches total)...\n", flush=True)
+          f"({args.games} games each, {args.rounds * args.games} matches "
+          f"total)...\n", flush=True)
 
     start = time.perf_counter()
     with ProcessPoolExecutor(max_workers=args.workers) as pool:

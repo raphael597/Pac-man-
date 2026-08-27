@@ -1,2 +1,54 @@
 searching 28 adversary configurations (10 games each, 40 matches total)...
 
+  stochastic_1.6                             superpac_win= 90.0% place=0.10
+  greedy_escape_5                            superpac_win= 60.0% place=0.50
+  mode_switch_(80-130)                       superpac_win= 60.0% place=0.80
+  stochastic_1.0                             superpac_win= 90.0% place=0.20
+  intercept_3                                superpac_win= 50.0% place=0.70  <-- COUNTER-BOT
+  fixed_priority_(0-3-1-2)                   superpac_win=100.0% place=0.00
+  mode_switch_(30-60)                        superpac_win= 70.0% place=0.50
+  noisy_greedy_0.06                          superpac_win= 70.0% place=0.50
+  aggressive_12                              superpac_win=100.0% place=0.00
+  noisy_greedy_0.35                          superpac_win= 90.0% place=0.10
+  fixed_priority_(0-3-1-2)                   superpac_win= 90.0% place=0.30
+  noisy_greedy_0.02                          superpac_win= 50.0% place=0.60  <-- COUNTER-BOT
+  aggressive_22                              superpac_win=100.0% place=0.00
+  pattern_(3-3-1-1)                          superpac_win=100.0% place=0.00
+  intercept_8                                superpac_win= 80.0% place=0.30
+  aggressive_7                               superpac_win=100.0% place=0.00
+  stochastic_1.0                             superpac_win=100.0% place=0.00
+  fixed_priority_(0-3-1-2)                   superpac_win=100.0% place=0.00
+  mode_switch_(80-130)                       superpac_win= 70.0% place=0.30
+  intercept_8                                superpac_win= 70.0% place=0.40
+  noisy_greedy_0.02                          superpac_win= 40.0% place=0.80  <-- COUNTER-BOT
+  mode_switch_(15-35)                        superpac_win= 60.0% place=0.40
+  aggressive_16                              superpac_win=100.0% place=0.00
+  stochastic_3.5                             superpac_win=100.0% place=0.00
+  pattern_(3-3-0)                            superpac_win=100.0% place=0.00
+  fixed_priority_(1-2-0-3)                   superpac_win=100.0% place=0.00
+  periodic_5_2_0                             superpac_win= 90.0% place=0.20
+  cluster_6                                  superpac_win= 20.0% place=1.50  <-- COUNTER-BOT
+
+found 4 counter-strategies in 71s (3 new league members)
+league: 19 members
+  greedy                                     superpac_win=  0.0% (seed, round 0)
+  cluster                                    superpac_win=  0.0% (seed, round 0)
+  greedy_escape3                             superpac_win=  0.0% (seed, round 0)
+  defensive                                  superpac_win=  0.0% (seed, round 0)
+  noisy_greedy                               superpac_win=  0.0% (seed, round 0)
+  periodic15                                 superpac_win=  0.0% (seed, round 0)
+  random                                     superpac_win=  0.0% (seed, round 0)
+  aggressive                                 superpac_win=  0.0% (seed, round 0)
+  greedy_escape5                             superpac_win=  0.0% (seed, round 0)
+  cluster6                                   superpac_win=  0.0% (seed, round 0)
+  pattern                                    superpac_win=  0.0% (seed, round 0)
+  stochastic                                 superpac_win=  0.0% (seed, round 0)
+  intercept                                  superpac_win=  0.0% (seed, round 0)
+  mode_switch                                superpac_win=  0.0% (seed, round 0)
+  fixed_priority                             superpac_win=  0.0% (seed, round 0)
+  noisy_greedy25                             superpac_win=  0.0% (seed, round 0)
+  cluster_6                                  superpac_win= 20.0% (counter, round 1)
+  noisy_greedy_0.02                          superpac_win= 40.0% (counter, round 1)
+  intercept_3                                superpac_win= 50.0% (counter, round 1)
+
+written to results/adversarial.json

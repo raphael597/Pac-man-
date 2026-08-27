@@ -1,0 +1,22 @@
+{
+  "elapsed": 70.71265422200031,
+  "threshold": 0.55,
+  "counters": [
+    {
+      "name": "cluster_6",
+      "superpac_win_rate": 0.2
+    },
+    {
+      "name": "noisy_greedy_0.02",
+      "superpac_win_rate": 0.4
+    },
+    {
+      "name": "intercept_3",
+      "superpac_win_rate": 0.5
+    },
+    {
+      "name": "noisy_greedy_0.02",
+      "superpac_win_rate": 0.5
+    }
+  ]
+}

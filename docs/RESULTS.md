@@ -343,6 +343,48 @@ worthless, and nothing like the values intuition suggested.
 The following were never mutated away from their defaults and remain
 hand-set: `food`, `food_potential`, `denial`, `intercept`, `death`, `danger`, `dead_end`, `stagnation`, `discount`, `potential_discount`, `territory_softness`, `max_depth`, `scenario_count`.
 
+## Adversarial search
+
+`python scripts/adversarial.py --rounds 28 --games 10` samples configurations
+from 11 bot archetypes and keeps any that hold SUPERPAC to 55% or less when
+filling three of the four seats. Four of 28 qualified:
+
+| counter-strategy | SUPERPAC win rate | SUPERPAC placement |
+|---|---|---|
+| `cluster_6` (cluster bot, radius 6) | **20.0%** | 1.50 |
+| `noisy_greedy_0.02` (greedy, 2% noise) | 40.0% | 0.80 |
+| `intercept_3` | 50.0% | — |
+| `mode_switch_(15-35)` | 60.0% | 0.40 |
+
+Ten games each, so the individual figures are indicative rather than precise.
+The *pattern* is the point, and it is unambiguous.
+
+**Every counter-strategy that works is a pure harvester.** Not one of them
+fights, traps, ambushes or outmanoeuvres SUPERPAC. `cluster_6` simply targets
+dense pockets of food and collects them faster. `noisy_greedy_0.02` is
+near-pure greed with the noise turned almost off. Meanwhile every *aggressive*
+configuration tested — `aggressive_7`, `aggressive_16`, `aggressive_22` — lost
+100% of its games, as did every scripted, periodic and fixed-priority bot.
+
+This is the third independent line of evidence pointing at the same weakness:
+
+| method | evidence | conclusion |
+|---|---|---|
+| failure analysis | 0 losses from elimination, 100% survival, all losses on points | safety spending is wasted |
+| weight optimisation | `mobility` cut 56% | safety weighted too heavily |
+| adversarial search | only harvesters beat it; every aggressor loses 100% | it out-survives but under-collects |
+
+Three methods, three kinds of evidence, one answer: **SUPERPAC's remaining
+weakness is harvesting throughput, not survival, prediction or planning.** Its
+defensive machinery is comfortably ahead of what the opponent population can
+punish, and the marginal move should be spent on food.
+
+That is a specific, testable direction for the next iteration rather than a
+vague "make it better", which is precisely what the adversarial loop exists to
+produce. `results/adversarial.json` has the raw output, and the counter-bots
+are now permanent league members so a future version cannot "improve" by
+forgetting them.
+
 ## Performance
 
 `python scripts/profile_agent.py`

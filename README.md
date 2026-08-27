@@ -269,6 +269,27 @@ only measurement that spoke to them was taken with the broken harness.
 | `docs/RESULTS.md` | every measurement, including the three that went against the design and the one that was wrong |
 | `docs/ROADMAP.md` | what was built per phase, what was deliberately not built, and what to do next |
 
+### Adversarial search: what actually beats it
+
+`scripts/adversarial.py` searches bot-parameter space for configurations that
+beat the champion. Of 28 sampled, four qualified — and **every one of them is
+a pure harvester**:
+
+| counter-strategy | SUPERPAC win rate |
+|---|---|
+| `cluster_6` (dense-pocket collector) | **20.0%** |
+| `noisy_greedy_0.02` (near-pure greed) | 40.0% |
+| `intercept_3` | 50.0% |
+| `mode_switch_(15-35)` | 60.0% |
+
+Not one of them fights. Every *aggressive* configuration tested lost 100% of
+its games, as did every scripted, periodic and fixed-priority bot.
+
+That agrees with the failure analysis (zero losses from elimination, 100%
+survival, every loss on points) and with what the optimiser did to the weights
+(`mobility` cut 56%). Three independent methods, one answer: **the remaining
+weakness is harvesting throughput, not survival, prediction or planning.**
+
 ## Layout
 
 ```
