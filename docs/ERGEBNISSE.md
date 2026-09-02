@@ -5,51 +5,115 @@ Alle Zahlen stammen aus Skripten in diesem Repository und laufen auf der
 
 ## Endstand
 
-`python scripts/final_bench.py 40` — 40 Spiele je Zeile, 15×15, 100 Züge.
-Bei sechs gleich starken Spielern wären 16.7% fair.
+`python scripts/grossbenchmark.py --games 400 --variant harvester=@harvester …`
+— 12 000 Partien, fünf Spieler auf **identischen Brettern**, sechs
+Aufstellungen, 400 Partien je Zelle. Bei sechs gleich starken Spielern wären
+16.7% fair.
 
-| Gegner | Spieler | Sieg | Stärke | bester Gegner | lebt |
+| über alle sechs Aufstellungen (2400 Partien je Spieler) | ThoresT | sweeper | harvester | hunter | cautious |
 |---|---|---|---|---|---|
-| 5× Zufallsbot (Lehrer) | **ThoresT** | 90.0% | **93.9** | 36.9 | 90% |
-| | harvester | 92.5% | 76.5 | 33.8 | 92% |
-| | sweeper | 80.0% | 73.5 | 35.6 | 80% |
-| | Stub (tut nichts) | 0.0% | 1.0 | 37.0 | 70% |
-| 5× harvester | **ThoresT** | **50.0%** | **67.8** | 56.7 | 75% |
-| | harvester | 12.5% | 36.6 | 46.2 | 100% |
-| | sweeper | 27.5% | 44.0 | 61.5 | 45% |
-| 5× sweeper | **ThoresT** | **37.5%** | **62.6** | 78.0 | 62% |
-| | harvester | 25.0% | 58.9 | 94.3 | 28% |
-| | sweeper | 15.0% | 35.3 | 76.8 | 98% |
-| gemischt | **ThoresT** | **25.0%** | **53.5** | 91.2 | 57% |
-| | harvester | 15.0% | 47.9 | 82.3 | 70% |
-| | sweeper | 22.5% | 48.7 | 88.3 | 65% |
-| 5× hunter | ThoresT | 27.5% | 56.3 | 96.2 | **28%** |
-| | harvester | 30.0% | 54.9 | 94.8 | 30% |
-| | **sweeper** | **50.0%** | **68.9** | 75.2 | 62% |
+| stärkster | **65.4%** | 24.2% | 20.1% | 12.4% | 8.2% |
+| allein übrig, alle Partien | **32.7%** | 2.4% | 0.3% | 4.4% | 0.1% |
+| allein übrig, nur entschiedene | **80.6%** | 22.8% | 3.1% | 29.7% | 1.5% |
+| mittlere Stärke | **110.0** | 41.6 | 44.1 | 25.3 | 33.0 |
 
-ThoresT ist in drei von fünf Szenarien der Beste, und dort mit deutlichem
-Abstand: gegen fünf Erntebots 50.0% gegen 12.5%.
+Weil alle fünf dieselben Bretter spielen, lässt sich das gepaart auswerten:
+jede einfache Strategie ist um 28 bis 57 Punkte schlechter, alle p unter
+10⁻¹⁵⁰. ThoresT ist in **allen sechs** Aufstellungen der Beste.
 
-### Wo er verliert, und warum
+### Die Aufstellung des Lehrers, ohne Sparlimit
 
-**Gegen fünf Jäger ist der stumpfe `sweeper` besser** (50.0% gegen 27.5%),
-weil er 62% überlebt und wir nur 28%. Das ist kein Übersehen — es ist ein
-gemessener Zielkonflikt. Mit höherem `exposure`-Gewicht:
+`PacmanGame.py` ist der Ernstfall und zugleich die einzige der sechs
+Aufstellungen, die zuverlässig zu Ende gespielt wird. Eigener Lauf über
+1200 Partien mit dem echten Spielende statt eines Zuglimits:
 
-| exposure | vs 5× hunter | vs 5× harvester |
+| | ThoresT | fair wären |
 |---|---|---|
-| 5.8 (getunt) | 36.7% Sieg, 37% lebt | 50.0% Sieg, Stärke 60.6 |
-| 11.6 | 40.0%, 40% lebt | 40.0%, Stärke **50.4** |
-| 20.4 | 43.3%, 50% lebt | 50.0%, Stärke **50.4** |
+| stärkster | **68.0%** [65.3, 70.6] | 16.7% |
+| allein übrig, alle Partien | **61.7%** [58.9, 64.4] | 16.7% |
+| allein übrig, nur entschiedene | **70.9%** [68.1, 73.6] | — |
+| unentschieden | 13.0% | — |
 
-Vorsicht kauft Überleben gegen Jäger und kostet ein Sechstel der Ernte gegen
-alle anderen. Der Optimierer hat diese Dimension über [0, 20] durchsucht und
-5.8 gewählt; ein Turnier voller reiner Jäger ist unwahrscheinlicher als eines
-voller Erntebots.
+### Was diese Messung widerlegt hat
 
-**Gegen die Zufallsbots liegt der simple `harvester` nominell vorn**
-(92.5% gegen 90.0%) — bei ±9% Konfidenzintervall ist das Rauschen. Unsere
-Stärke liegt dabei 17 Punkte höher (93.9 gegen 76.5).
+Die vorige Fassung dieser Seite stand auf 40 Partien je Zeile, und zwei ihrer
+Aussagen halten nicht:
+
+**„Gegen die Zufallsbots liegt der simple `harvester` nominell vorn"**
+(92.5% gegen 90.0%). Mit 400 statt 40 Partien in genau dieser Aufstellung:
+ThoresT 65.5%, harvester 20.2%. Der Vorsprung war Rauschen, und er zeigte in
+die falsche Richtung.
+
+**„Gegen fünf Jäger ist der stumpfe `sweeper` besser"** (50.0% gegen 27.5%).
+In der Jäger-Aufstellung mit 400 Partien: ThoresT 65.8%, sweeper 22.0%.
+
+Beide Behauptungen kamen aus Stichproben, deren Konfidenzintervall breiter
+war als der behauptete Unterschied. Das ist kein Ausrutscher gewesen, sondern
+der Normalfall bei 40 Partien — siehe unten.
+
+## Wie groß muss eine Messung sein?
+
+Das Konfidenzintervall einer Quote aus 100 Partien ist rund ±10 Punkte. Alle
+Zahlen dieses Projekts kamen lange aus 24 bis 176 Partien. Verbesserungen
+unter 10 Punkten waren damit schlicht **unsichtbar**, und mehrfach wurde
+Rauschen für Fortschritt gehalten und wieder zurückgenommen.
+
+| Partien je Zelle | halbe Intervallbreite bei p ≈ 0.65 |
+|---|---|
+| 40 | ±14.8 Punkte |
+| 100 | ±9.3 |
+| 400 | ±4.7 |
+| 2400 | ±1.9 |
+
+Zwei Entwurfsentscheidungen des Grossbenchmarks folgen aus Messungen, nicht
+aus Bequemlichkeit:
+
+**Gepaarte Bretter.** Alle Varianten spielen dieselben Seeds — gleiche
+Startpositionen, gleiche Zugreihenfolge, gleiche Kampfwürfe. Die
+Brett-Varianz fällt heraus, ausgewertet wird mit McNemar über die Bretter,
+auf denen sich die Varianten unterscheiden. Das kostet rund ein Viertel der
+Partien für dieselbe Aussage.
+
+**400 Züge Limit, „stärkster" als Hauptzahl.** Die Engine hat kein Zuglimit;
+`PacmanGame.py` läuft, bis nur noch einer lebt. Gegen ausweichende Gegner
+passiert das faktisch nie:
+
+| | |
+|---|---|
+| nach 1500 Zügen entschieden | 44% der Partien |
+| Median-Länge | 1500 (= das Limit) |
+| Antwort auf „wer ist der stärkste" bei Zug 200 | in **48 von 48** Partien dieselbe wie bei Zug 1500 |
+
+Wer gewinnt, ist also oft gar nicht definiert; wer der stärkste ist, steht
+nach 200 Zügen fest. Deshalb ist „stärkster" die Hauptzahl, 400 Züge reichen
+dafür, und das bringt die dreifache Zahl Partien pro Rechenzeit. „Allein
+übrig" wird trotzdem berichtet, aber in drei Töpfen — gewonnen, verloren,
+unentschieden. Eine Partie, die nicht zu Ende gespielt wurde, als Niederlage
+zu buchen wäre gelogen.
+
+## Eine Idee, die gemessen und verworfen wurde
+
+`facing_discipline` sollte bestrafen, einem nahen Gegner den Rücken
+zuzudrehen: `danger` bepreist nur Gegner, die *schon* auf uns zielen, aber
+einer zwei Schritte entfernt braucht einen Zug zum Zielen und einen zum
+Ziehen — und unsere Blickrichtung entscheidet dann über seine Chancen (91%
+statt 50%). Klingt zwingend.
+
+10 800 Partien, gepaart, zwei Dosierungen:
+
+| | allein übrig | stärkster | unentschieden |
+|---|---|---|---|
+| ohne | **32.2%** | **65.8%** | 60% |
+| Gewicht 6 | 28.7% (−3.6, p = 10⁻⁴) | 65.6% (kein Unterschied) | 64% |
+| Gewicht 12 | 26.0% (−6.2, p = 6·10⁻¹¹) | 64.0% (kein Unterschied) | 67% |
+
+Es hilft nicht nur nicht, es **schadet** — und zwar dosisabhängig. Der
+Mechanismus steht in der letzten Spalte: der Bot verbringt Züge mit
+Umdrehen, mehr Partien laufen ins Limit, und die Stärke bleibt dabei flach
+(109.4 / 111.4 / 110.1). Er kauft sich nichts für die verlorene Zeit.
+
+Bei 100 Partien wäre −3.6 Punkte unsichtbar gewesen. Das Gewicht existiert
+weiter, steht auf 0.0, und diese Tabelle ist der Grund.
 
 ## Gewichts-Optimierung
 
@@ -161,8 +225,23 @@ eines haben könnte:
 |---|---|
 | erste lauffähige Version | 13.3 |
 | nach Vorberechnung der Felder | 4.9 |
-| Auslieferungsstand | 6.4 (max 11.2) |
+| Auslieferungsstand, gemessen über 4800 Partien | **8.5** (max 23.2) |
 
 Die Profilierung zeigte 280 000 Aufrufe von vier Hilfsfunktionen pro drei
 Partien — alle hingen nur vom Brett ab, das sich während des Nachdenkens
 nicht ändert. Einmal pro Zug vorberechnet statt einmal pro Suchknoten.
+
+### Wird die Notfall-Route je benutzt?
+
+`Brain.decide` fängt jede Exception ab und fällt auf `_greedy_action`
+zurück, eine sehr einfache Logik. Ein naheliegender Verdacht ist, dass der
+Bot bei `depth = 14` und `beam_width = 27` unter Last dort landet. Gezählt
+über zwei unabhängige Läufe:
+
+| Lauf | Partien | Fehler | ms/Zug ⌀ | max |
+|---|---|---|---|---|
+| Grossbenchmark | 3600 | **0** | 8.47 | 23.18 |
+| Lehrer-Aufstellung | 1200 | **0** | 9.10 | 20.52 |
+
+Kein einziges Mal in 4800 Partien. Bei 23 ms Spitze ist auch kein
+plausibles Zeitlimit in Reichweite.
