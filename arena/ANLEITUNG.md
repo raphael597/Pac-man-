@@ -73,6 +73,29 @@ Bei 20 Partien kann ein Bot mit 40% echter Stärke leicht als 60% erscheinen.
 derselben `--saat` laufen lassen, damit beide Fassungen dieselben Bretter
 sehen.
 
+## Die Partie anschauen
+
+```bash
+python arena/freundschaftsarena.py --partien 20 --fueller 3 --replay partie.html
+```
+
+Schreibt **eine einzelne HTML-Datei**, die ihr euch gegenseitig schicken
+könnt — kein Zubehör, keine zweite Datei. Darin könnt ihr die Partie
+abspielen und scrubben (Leertaste, Pfeiltasten), seht den Stärkeverlauf
+aller Spieler und darunter die Diagnose je Bot.
+
+Auf dem Brett zeigt die **Größe** eines Punktes die Stärke und der Strich
+die **Blickrichtung**. Die ist die wichtigste Einzelinformation im Spiel:
+Drehen kostet einen ganzen Zug, und wer von hinten angegriffen wird,
+verliert mit 91 %, von vorn nur mit 50 %.
+
+Mit `--replay-saat 7` wählt ihr gezielt eine bestimmte Partie aus — zum
+Beispiel die eine, die euer Bot verloren hat.
+
+Der Stärkeverlauf ist der Teil, der am meisten verrät: Man sieht genau den
+Zug, in dem eine Partie kippt, weil einer den anderen frisst und sich in
+einem einzigen Zug verdoppelt.
+
 ## Die Auswertung lesen
 
 Die Arena fasst eure Bots nicht an. Sie schaut vor und nach jedem Zug auf

@@ -1,0 +1,403 @@
+<title>Kohlfeld Replay</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;600&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+:root{
+  --ground:#f5f7f0; --surface:#fffffe; --sunk:#ecefe4;
+  --ink:#191c14; --ink-2:#4a5142; --muted:#79806c;
+  --line:#dde2d2; --line-strong:#c3caB4;
+  --kohl:#8ab355; --wand:#9aa08c;
+  --warn:#a8471f;
+  --p0:#26648e; --p1:#c2662b; --p2:#6f4a94; --p3:#2f8265;
+  --p4:#ab3529; --p5:#957f18;
+  --schatten:0 1px 2px rgba(25,28,20,.06), 0 8px 24px -12px rgba(25,28,20,.18);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#12150f; --surface:#1a1e16; --sunk:#0d100a;
+    --ink:#eef1e6; --ink-2:#b3bba6; --muted:#828a76;
+    --line:#2b3125; --line-strong:#3d4534;
+    --kohl:#7fa84d; --wand:#5b6152;
+    --warn:#e0794d;
+    --p0:#5fa5d8; --p1:#e69248; --p2:#a985d1; --p3:#4fbb92;
+    --p4:#e0655a; --p5:#ccb03c;
+    --schatten:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#12150f; --surface:#1a1e16; --sunk:#0d100a;
+  --ink:#eef1e6; --ink-2:#b3bba6; --muted:#828a76;
+  --line:#2b3125; --line-strong:#3d4534;
+  --kohl:#7fa84d; --wand:#5b6152;
+  --warn:#e0794d;
+  --p0:#5fa5d8; --p1:#e69248; --p2:#a985d1; --p3:#4fbb92;
+  --p4:#e0655a; --p5:#ccb03c;
+  --schatten:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font:16px/1.55 "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.huelle{max-width:1180px; margin:0 auto; padding:28px 20px 64px}
+h1{
+  font-family:"Bricolage Grotesque", ui-sans-serif, sans-serif;
+  font-weight:700; font-size:clamp(26px,4vw,40px); line-height:1.05;
+  letter-spacing:-.02em; margin:0; text-wrap:balance;
+}
+h2{
+  font-family:"Bricolage Grotesque", ui-sans-serif, sans-serif;
+  font-weight:600; font-size:19px; letter-spacing:-.01em; margin:0;
+}
+.marke{
+  font-family:"IBM Plex Mono", ui-monospace, monospace;
+  font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--muted);
+}
+.kopf{display:flex; flex-wrap:wrap; gap:16px 28px; align-items:flex-end;
+      justify-content:space-between; padding-bottom:20px;
+      border-bottom:1px solid var(--line)}
+.mitspieler{display:flex; flex-wrap:wrap; gap:6px 16px; margin:8px 0 0;
+            font:400 13px "IBM Plex Mono",monospace; color:var(--ink-2)}
+.mitspieler span{display:inline-flex; align-items:center; gap:6px}
+.mitspieler i{width:9px; height:9px; border-radius:2px; display:inline-block}
+.kopfdaten{display:flex; gap:26px; font-family:"IBM Plex Mono",monospace;
+           font-size:13px; font-variant-numeric:tabular-nums}
+.kopfdaten b{display:block; font-size:20px; font-weight:600; color:var(--ink)}
+.kopfdaten span{color:var(--muted)}
+
+.buehne{display:grid; grid-template-columns:minmax(0,1fr) 300px;
+        gap:26px; margin-top:26px; align-items:start}
+@media (max-width:860px){ .buehne{grid-template-columns:1fr} }
+
+.brettkasten{background:var(--surface); border:1px solid var(--line);
+             border-radius:6px; padding:14px; box-shadow:var(--schatten)}
+canvas#brett{width:100%; height:auto; display:block; border-radius:3px;
+             background:var(--sunk); touch-action:none}
+.torusnote{font-family:"IBM Plex Mono",monospace; font-size:11px;
+           color:var(--muted); margin-top:10px; display:flex;
+           justify-content:space-between; gap:12px; flex-wrap:wrap}
+
+.steuer{display:flex; gap:10px; align-items:center; margin-top:14px;
+        flex-wrap:wrap}
+button{
+  font:600 14px/1 "Source Sans 3",sans-serif; color:var(--ink);
+  background:var(--surface); border:1px solid var(--line-strong);
+  border-radius:4px; padding:9px 14px; cursor:pointer;
+}
+button:hover{background:var(--sunk)}
+button:focus-visible, input:focus-visible{outline:2px solid var(--p0);
+  outline-offset:2px}
+button.haupt{background:var(--ink); color:var(--ground);
+             border-color:var(--ink); min-width:104px}
+input[type=range]{flex:1; min-width:140px; accent-color:var(--p0)}
+select{font:400 13px "IBM Plex Mono",monospace; padding:8px;
+       background:var(--surface); color:var(--ink);
+       border:1px solid var(--line-strong); border-radius:4px}
+.zugzahl{font-family:"IBM Plex Mono",monospace; font-size:13px;
+         font-variant-numeric:tabular-nums; color:var(--ink-2);
+         min-width:96px}
+
+.tafel{background:var(--surface); border:1px solid var(--line);
+       border-radius:6px; box-shadow:var(--schatten); overflow:hidden}
+.tafel h2{padding:14px 16px 10px}
+.reihe{display:grid; grid-template-columns:10px 1fr auto;
+       gap:10px; align-items:center; padding:9px 16px;
+       border-top:1px solid var(--line); transition:opacity .2s}
+.reihe.tot{opacity:.38}
+.chip{width:10px; height:10px; border-radius:2px}
+.rname{font:600 14px "Source Sans 3",sans-serif; overflow:hidden;
+       text-overflow:ellipsis; white-space:nowrap}
+.rname small{display:block; font:400 11px "IBM Plex Mono",monospace;
+             color:var(--muted); letter-spacing:.03em}
+.rkraft{font:600 16px "IBM Plex Mono",monospace;
+        font-variant-numeric:tabular-nums}
+
+.balken{margin-top:26px; background:var(--surface); border:1px solid var(--line);
+        border-radius:6px; padding:16px; box-shadow:var(--schatten)}
+canvas#verlauf{width:100%; height:210px; display:block}
+
+.karten{display:grid; grid-template-columns:repeat(auto-fill,minmax(268px,1fr));
+        gap:14px; margin-top:14px}
+.karte{background:var(--surface); border:1px solid var(--line);
+       border-radius:6px; padding:14px 16px; border-left:3px solid}
+.karte h3{margin:0 0 10px; font:600 15px "Source Sans 3",sans-serif;
+          display:flex; justify-content:space-between; gap:8px; align-items:baseline}
+.karte h3 em{font:400 11px "IBM Plex Mono",monospace; font-style:normal;
+             color:var(--muted); letter-spacing:.04em}
+.zeile{display:flex; justify-content:space-between; gap:10px;
+       font-size:13px; padding:3px 0; border-top:1px dotted var(--line)}
+.zeile:first-of-type{border-top:0}
+.zeile span{color:var(--ink-2)}
+.zeile b{font:600 13px "IBM Plex Mono",monospace;
+         font-variant-numeric:tabular-nums}
+.zeile b.warn{color:var(--warn)}
+
+.fuss{margin-top:34px; padding-top:18px; border-top:1px solid var(--line);
+      font-size:14px; color:var(--ink-2); max-width:66ch}
+.fuss code{font:400 13px "IBM Plex Mono",monospace; background:var(--sunk);
+           padding:2px 5px; border-radius:3px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="huelle">
+  <header class="kopf">
+    <div>
+      <div class="marke">Freundschaftsarena &middot; Aufzeichnung</div>
+      <h1>Kohlfeld</h1>
+      <p class="mitspieler" id="titel"></p>
+    </div>
+    <div class="kopfdaten">
+      <div><b id="kZuege">–</b><span>Züge</span></div>
+      <div><b id="kSpieler">–</b><span>Spieler</span></div>
+      <div><b id="kSaat">–</b><span>Saat</span></div>
+    </div>
+  </header>
+
+  <div class="buehne">
+    <div>
+      <div class="brettkasten">
+        <canvas id="brett" width="720" height="720"></canvas>
+        <div class="torusnote">
+          <span>Das Brett ist ein Torus — wer rechts hinausläuft, kommt links wieder herein.</span>
+          <span id="kohlrest"></span>
+        </div>
+      </div>
+      <div class="steuer">
+        <button class="haupt" id="abspielen">Abspielen</button>
+        <button id="zurueck" aria-label="Ein Zug zurück">◀</button>
+        <button id="vor" aria-label="Ein Zug vor">▶</button>
+        <input type="range" id="schieber" min="0" value="0" aria-label="Zug">
+        <span class="zugzahl" id="zuganzeige">Zug 0</span>
+        <select id="tempo" aria-label="Geschwindigkeit">
+          <option value="240">langsam</option>
+          <option value="110" selected>normal</option>
+          <option value="45">schnell</option>
+          <option value="12">sehr schnell</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="tafel">
+      <h2>Stand</h2>
+      <div id="stand"></div>
+    </div>
+  </div>
+
+  <div class="balken">
+    <h2>Stärke im Verlauf</h2>
+    <canvas id="verlauf" width="1100" height="210"></canvas>
+  </div>
+
+  <h2 style="margin-top:30px">Was jeder Bot getan hat</h2>
+  <div class="karten" id="karten"></div>
+
+  <p class="fuss">
+    Erzeugt mit <code>python arena/freundschaftsarena.py --replay datei.html</code>.
+    Die Arena fasst die Bots nicht an — sie liest vor und nach jedem Zug
+    das Brett ab. <b>Ohne Wirkung</b> heißt: weder Position noch Blick haben
+    sich geändert, der Zug war geschenkt. Drehen kostet in dieser Engine
+    einen ganzen Zug, deshalb ist der Blickpfeil auf dem Brett eingezeichnet:
+    Wer von hinten angegriffen wird, verliert mit 91 %, von vorn nur mit 50 %.
+  </p>
+</div>
+
+<script>
+const DATEN = __DATEN__;
+
+const F = ["--p0","--p1","--p2","--p3","--p4","--p5"];
+const stil = getComputedStyle(document.documentElement);
+const farbe = n => stil.getPropertyValue(n).trim();
+const spielerFarbe = i => farbe(F[i % F.length]);
+
+const G = DATEN.groesse;
+const waende = new Set(DATEN.waende);
+const bilder = DATEN.bilder;
+const namen = DATEN.spieler;
+
+// Kohl je Zug rekonstruieren: gespeichert ist nur, was in dem Zug
+// verschwunden ist - das spart bei 400 Zügen rund 90 000 Zahlen.
+const kohlStand = [];
+{
+  let jetzt = new Set(DATEN.kohl);
+  for (const b of bilder) {
+    for (const c of b.weg) jetzt.delete(c);
+    kohlStand.push(new Set(jetzt));
+  }
+}
+
+const brett = document.getElementById("brett");
+const ctx = brett.getContext("2d");
+let zug = 0, laeuft = false, timer = null;
+
+function zeichne() {
+  const bild = bilder[zug]; if (!bild) return;
+  const R = brett.width / G;
+  ctx.clearRect(0, 0, brett.width, brett.height);
+  ctx.fillStyle = farbe("--sunk");
+  ctx.fillRect(0, 0, brett.width, brett.height);
+
+  ctx.strokeStyle = farbe("--line");
+  ctx.lineWidth = 1;
+  for (let i = 1; i < G; i++) {
+    ctx.beginPath(); ctx.moveTo(i*R, 0); ctx.lineTo(i*R, brett.height); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, i*R); ctx.lineTo(brett.width, i*R); ctx.stroke();
+  }
+  ctx.fillStyle = farbe("--wand");
+  for (const c of waende) ctx.fillRect((c % G)*R, Math.floor(c/G)*R, R, R);
+
+  ctx.fillStyle = farbe("--kohl");
+  for (const c of kohlStand[zug]) {
+    ctx.beginPath();
+    ctx.arc((c % G)*R + R/2, Math.floor(c/G)*R + R/2, R*0.17, 0, 6.284);
+    ctx.fill();
+  }
+  document.getElementById("kohlrest").textContent =
+    kohlStand[zug].size + " Kohl übrig";
+
+  bild.p.forEach((p, i) => {
+    if (!p[4]) return;
+    const [x, y, blick, kraft] = p;
+    const cx = x*R + R/2, cy = y*R + R/2;
+    const c = spielerFarbe(i);
+    // Größe zeigt Stärke - der stärkste Bot ist auf einen Blick zu sehen.
+    const gross = Math.max(...bild.p.filter(q=>q[4]).map(q=>q[3])) || 1;
+    const rad = R*0.24 + R*0.16*Math.sqrt(kraft/gross);
+    ctx.fillStyle = c;
+    ctx.beginPath(); ctx.arc(cx, cy, rad, 0, 6.284); ctx.fill();
+    // Blickrichtung: Drehen kostet einen ganzen Zug, also ist sie
+    // die wichtigste Einzelinformation auf dem Brett.
+    const d = {N:[0,-1], S:[0,1], W:[-1,0], O:[1,0]}[blick] || [1,0];
+    ctx.strokeStyle = c; ctx.lineWidth = Math.max(2, R*0.12);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(cx + d[0]*rad*0.5, cy + d[1]*rad*0.5);
+    ctx.lineTo(cx + d[0]*(rad+R*0.30), cy + d[1]*(rad+R*0.30));
+    ctx.stroke();
+  });
+
+  document.getElementById("zuganzeige").textContent = "Zug " + zug;
+  document.getElementById("schieber").value = zug;
+  zeichneStand(bild);
+  zeichneVerlauf();
+}
+
+function zeichneStand(bild) {
+  const reihen = bild.p.map((p, i) => ({i, p}))
+    .sort((a, b) => b.p[3] - a.p[3]);
+  document.getElementById("stand").innerHTML = reihen.map(({i, p}) => `
+    <div class="reihe${p[4] ? "" : " tot"}">
+      <div class="chip" style="background:${spielerFarbe(i)}"></div>
+      <div class="rname">${namen[i]}<small>${p[4]
+        ? "Blick " + p[2] + " · " + p[0] + "," + p[1] : "gefressen"}</small></div>
+      <div class="rkraft">${Math.round(p[3])}</div>
+    </div>`).join("");
+}
+
+const vl = document.getElementById("verlauf");
+const vctx = vl.getContext("2d");
+function zeichneVerlauf() {
+  const B = vl.width, H = vl.height, pad = 30;
+  vctx.clearRect(0, 0, B, H);
+  const hoch = Math.max(10, ...bilder.map(b => Math.max(...b.p.map(p => p[3]))));
+  // Gitter mit beschrifteten Werten, die die Kurve auch erreicht
+  vctx.font = '11px "IBM Plex Mono", monospace';
+  vctx.fillStyle = farbe("--muted");
+  vctx.strokeStyle = farbe("--line");
+  vctx.lineWidth = 1;
+  for (let s = 0; s <= 4; s++) {
+    const wert = Math.round(hoch * s / 4);
+    const y = H - pad - (H - pad*1.4) * (s/4);
+    vctx.beginPath(); vctx.moveTo(pad, y); vctx.lineTo(B-8, y); vctx.stroke();
+    vctx.fillText(wert, 2, y + 4);
+  }
+  namen.forEach((_, i) => {
+    vctx.strokeStyle = spielerFarbe(i);
+    vctx.lineWidth = 2; vctx.beginPath();
+    let ab = false;
+    bilder.forEach((b, t) => {
+      if (!b.p[i][4] && !ab) { ab = true; }
+      if (ab) return;
+      const x = pad + (B - pad - 8) * (t / Math.max(1, bilder.length - 1));
+      const y = H - pad - (H - pad*1.4) * (b.p[i][3] / hoch);
+      t === 0 ? vctx.moveTo(x, y) : vctx.lineTo(x, y);
+    });
+    vctx.stroke();
+  });
+  const x = pad + (B - pad - 8) * (zug / Math.max(1, bilder.length - 1));
+  vctx.strokeStyle = farbe("--ink-2"); vctx.lineWidth = 1;
+  vctx.setLineDash([3, 3]);
+  vctx.beginPath(); vctx.moveTo(x, 6); vctx.lineTo(x, H - pad); vctx.stroke();
+  vctx.setLineDash([]);
+  vctx.fillStyle = farbe("--muted");
+  vctx.fillText("Zug " + zug, Math.min(x + 5, B - 60), 14);
+}
+
+function karten() {
+  const a = DATEN.auswertung;
+  document.getElementById("karten").innerHTML = namen.map((n, i) => {
+    const d = a[n]; if (!d) return "";
+    const beute = (d.beute || 0) + (d.verteidigungsbeute || 0);
+    const gesamt = d.kohl + beute;
+    const kaempfe = d.kaempfe_gewonnen + d.kaempfe_verloren;
+    const leer = d.leerlauf_anteil || 0;
+    return `<div class="karte" style="border-left-color:${spielerFarbe(i)}">
+      <h3>${n}<em>${d.lebt ? "überlebt" : "Zug " + d.gestorben_in_zug}</em></h3>
+      <div class="zeile"><span>Endstärke</span><b>${Math.round(d.endstaerke)}</b></div>
+      <div class="zeile"><span>davon aus Kämpfen</span><b>${
+        gesamt ? Math.round(100*beute/gesamt) : 0}%</b></div>
+      <div class="zeile"><span>gezogen / gedreht</span><b>${
+        Math.round(100*d.gezogen/Math.max(1,d.zuege))}% / ${
+        Math.round(100*d.gedreht/Math.max(1,d.zuege))}%</b></div>
+      <div class="zeile"><span>ohne Wirkung</span><b class="${
+        leer > 0.15 ? "warn" : ""}">${Math.round(100*leer)}%</b></div>
+      <div class="zeile"><span>Angriffe gewonnen</span><b class="${
+        kaempfe && d.kaempfe_gewonnen/kaempfe < 0.5 ? "warn" : ""}">${
+        kaempfe ? Math.round(100*d.kaempfe_gewonnen/kaempfe) + "% (" +
+        d.kaempfe_gewonnen + ":" + d.kaempfe_verloren + ")" : "keine"}</b></div>
+      ${d.verteidigt ? `<div class="zeile"><span>Angriffe überlebt</span><b>${
+        d.verteidigt}, ${Math.round(d.verteidigungsbeute)} geerbt</b></div>` : ""}
+      <div class="zeile"><span>ms je Zug</span><b>${
+        (d.ms_schnitt || 0).toFixed(2)}</b></div>
+      ${d.gestorben_gegen ? `<div class="zeile"><span>gefressen von</span><b>${
+        d.gestorben_gegen}</b></div>` : ""}
+    </div>`;
+  }).join("");
+}
+
+document.getElementById("kZuege").textContent = bilder.length;
+document.getElementById("kSpieler").textContent = namen.length;
+document.getElementById("kSaat").textContent = DATEN.saat;
+document.getElementById("titel").innerHTML = namen.map((n, i) =>
+  `<span><i style="background:${spielerFarbe(i)}"></i>${n}</span>`).join("");
+document.getElementById("schieber").max = bilder.length - 1;
+
+const knopf = document.getElementById("abspielen");
+function halt(){ laeuft=false; clearInterval(timer); knopf.textContent="Abspielen"; }
+function los(){
+  if (zug >= bilder.length - 1) zug = 0;
+  laeuft = true; knopf.textContent = "Pause";
+  clearInterval(timer);
+  timer = setInterval(() => {
+    if (zug >= bilder.length - 1) { halt(); return; }
+    zug++; zeichne();
+  }, +document.getElementById("tempo").value);
+}
+knopf.onclick = () => laeuft ? halt() : los();
+document.getElementById("vor").onclick = () => {
+  halt(); zug = Math.min(bilder.length - 1, zug + 1); zeichne(); };
+document.getElementById("zurueck").onclick = () => {
+  halt(); zug = Math.max(0, zug - 1); zeichne(); };
+document.getElementById("schieber").oninput = e => {
+  halt(); zug = +e.target.value; zeichne(); };
+document.getElementById("tempo").onchange = () => { if (laeuft) los(); };
+window.addEventListener("keydown", e => {
+  if (e.key === " ") { e.preventDefault(); laeuft ? halt() : los(); }
+  if (e.key === "ArrowRight") document.getElementById("vor").click();
+  if (e.key === "ArrowLeft") document.getElementById("zurueck").click();
+});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", zeichne);
+
+karten();
+zeichne();
+</script>

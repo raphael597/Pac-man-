@@ -219,15 +219,41 @@ class Protokoll:
         }
 
 
+def _kohlfelder(brett, groesse: int) -> set:
+    return {y * groesse + x for y in range(groesse) for x in range(groesse)
+            if isinstance(brett.field[Position(x, y)], Pacman.Cabbage)}
+
+
 def spiele(aufstellung: Sequence[Tuple[type, str]], saat: int,
            groesse: int = 15, waende: Optional[list] = None,
-           grenze: int = 1500) -> Tuple[Dict[str, Protokoll], int]:
-    """Eine Partie auf der echten Engine, Zug fuer Zug mitgeschrieben."""
+           grenze: int = 1500,
+           aufzeichnung: Optional[dict] = None
+           ) -> Tuple[Dict[str, Protokoll], int]:
+    """Eine Partie auf der echten Engine, Zug fuer Zug mitgeschrieben.
+
+    Wird ``aufzeichnung`` uebergeben, wird sie mit dem Verlauf gefuellt:
+    einmal das feste Brett, dann je Zug die Spieler und welcher Kohl in
+    diesem Zug verschwunden ist. Nicht der ganze Kohl je Bild - das waeren
+    bei 400 Zuegen 90 000 Zahlen fuer eine Information, die sich pro Zug um
+    hoechstens eine Handvoll Felder aendert.
+    """
     random.seed(saat)
     if waende is None:
         waende = WAENDE
     brett = Pacman.Field(groesse, [[k, n] for k, n in aufstellung], waende)
     protokolle = {p.name: Protokoll(p.name) for p in brett.pacmans}
+
+    if aufzeichnung is not None:
+        kohl_vorher = _kohlfelder(brett, groesse)
+        aufzeichnung.update({
+            "groesse": groesse,
+            "waende": sorted(
+                y * groesse + x for y in range(groesse) for x in range(groesse)
+                if isinstance(brett.field[Position(x, y)], Pacman.Wall)),
+            "kohl": sorted(kohl_vorher),
+            "spieler": [p.name for p in brett.pacmans],
+            "bilder": [],
+        })
 
     zug = 0
     lebend = sum(1 for p in brett.pacmans if p.alive)
@@ -293,6 +319,16 @@ def spiele(aufstellung: Sequence[Tuple[type, str]], saat: int,
 
         for p in brett.pacmans:
             protokolle[p.name].verlauf.append(float(p.strength))
+        if aufzeichnung is not None:
+            kohl_jetzt = _kohlfelder(brett, groesse)
+            aufzeichnung["bilder"].append({
+                "p": [[p.position._x, p.position._y,
+                       RICHTUNGSNAME.get((p.direction._x, p.direction._y), "O"),
+                       float(p.strength), 1 if p.alive else 0]
+                      for p in brett.pacmans],
+                "weg": sorted(kohl_vorher - kohl_jetzt),
+            })
+            kohl_vorher = kohl_jetzt
         lebend = sum(1 for p in brett.pacmans if p.alive)
         zug += 1
 
@@ -464,6 +500,22 @@ Was die Zahlen bedeuten
                   83%, von vorne bei 50%.""")
 
 
+def schreibe_replay(pfad: str, daten: dict) -> None:
+    """Eine Partie als HTML zum Anschauen - eine Datei, ohne Zubehoer.
+
+    Die Aufzeichnung wird in die Vorlage eingesetzt, statt sie danebenzu-
+    legen: die Datei soll man weiterschicken koennen, und ein Browser laedt
+    aus einer lokalen HTML-Datei ohnehin keine zweite Datei nach.
+    """
+    vorlage = os.path.join(HIER, "replay_vorlage.html")
+    with open(vorlage) as datei:
+        html = datei.read()
+    # Kein </script> im JSON, sonst endet das Skript mitten in den Daten.
+    roh = json.dumps(daten, separators=(",", ":")).replace("</", "<\\/")
+    with open(pfad, "w") as datei:
+        datei.write(html.replace("__DATEN__", roh))
+
+
 # ==========================================================================
 def main() -> int:
     ap = argparse.ArgumentParser(
@@ -479,6 +531,10 @@ def main() -> int:
                     help="Zuglimit; die Engine selbst hat keines")
     ap.add_argument("--saat", type=int, default=1)
     ap.add_argument("--bericht", help="Rohdaten als JSON hierhin schreiben")
+    ap.add_argument("--replay",
+                    help="eine Partie als HTML zum Anschauen hierhin schreiben")
+    ap.add_argument("--replay-saat", type=int,
+                    help="welche Partie ins Replay soll (Standard: --saat)")
     ap.add_argument("--nur-tabelle", action="store_true")
     args = ap.parse_args()
 
@@ -528,6 +584,16 @@ def main() -> int:
                        "spieler": [n for _, n in aufstellung],
                        "rohdaten": rohdaten}, datei, indent=1)
         print(f"\nRohdaten (jeder Zug jedes Spielers): {args.bericht}")
+    if args.replay:
+        saat = args.replay_saat if args.replay_saat is not None else args.saat
+        daten: dict = {}
+        protokolle, zuege = spiele(aufstellung, saat, args.feldgroesse,
+                                   waende, args.grenze, aufzeichnung=daten)
+        daten["saat"] = saat
+        daten["auswertung"] = {n: p.als_dict() for n, p in protokolle.items()}
+        schreibe_replay(args.replay, daten)
+        print(f"\nReplay ({zuege} Zuege, Saat {saat}): {args.replay}")
+
     print(f"\n{args.partien} Partien in {time.time() - begonnen:.1f} s")
     return 0
 
