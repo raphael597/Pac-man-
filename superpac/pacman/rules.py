@@ -207,6 +207,100 @@ def distance(ax: int, ay: int, bx: int, by: int, size: int) -> int:
     return min(dx, size - dx) + min(dy, size - dy)
 
 
+# --------------------------------------------------------------------------
+# Distances that respect walls
+# --------------------------------------------------------------------------
+# ``distance`` above is Manhattan on the torus.  That was exact when this was
+# written, because the first engine had no walls at all.  The teacher's second
+# engine does: ``PacmanGame.py`` builds six segments, 28 of 225 cells.  On a
+# walled board Manhattan lies in one direction only - it always reports a cell
+# as *closer* than it is, never further.  Everywhere that matters, that lie is
+# the dangerous one:
+#
+#   * threat pressure: a rival one step away through a wall cannot reach us
+#     for several turns, but gets stamped as maximum danger, so we flee from
+#     something that is not there;
+#   * hunt value: the gradient points straight at a target through a wall we
+#     cannot pass, so the pull is into the wall;
+#   * cabbage density: food behind a wall counts as if it were next door.
+#
+# A breadth-first search over the open cells gives the true distance.  The
+# board is 225 cells, so one search costs about as much as a few hundred
+# additions - nothing next to the 8 ms per turn the planner already spends.
+
+_NEIGHBOURHOOD_CACHE: Dict[tuple, List[List[Tuple[int, int]]]] = {}
+
+
+#: Distance reported for a cell the search never reached - walled off, or
+#: simply further than the ``limit`` a caller asked for.  Deliberately not a
+#: small number: it gets fed straight into ``decay ** d``, and any value that
+#: could be mistaken for a real distance would turn an unreachable target into
+#: an attractive one.
+UNREACHABLE: Final[int] = 1 << 30
+
+
+def distance_field(size: int, blocked: Optional[Sequence[int]],
+                   sx: int, sy: int, limit: Optional[int] = None) -> List[int]:
+    """True distance from ``(sx, sy)`` to every cell, walls excluded.
+
+    Walled and unreachable cells come back as :data:`UNREACHABLE`, and so do
+    cells beyond ``limit`` when one is given - ``limit`` only stops the search
+    early, it never becomes a distance.  With ``blocked`` empty the result is
+    exactly what :func:`distance` gives, so callers need no second code path
+    for boards without walls.
+    """
+    n = size * size
+    dist = [UNREACHABLE] * n
+    start = sy * size + sx
+    if blocked is not None and blocked[start]:
+        return dist
+    dist[start] = 0
+    frontier = [(sx, sy)]
+    step_count = 0
+    while frontier and (limit is None or step_count < limit):
+        step_count += 1
+        nxt = []
+        for x, y in frontier:
+            for dx, dy in DELTAS:
+                ax = (x + dx) % size
+                ay = (y + dy) % size
+                cell = ay * size + ax
+                if dist[cell] <= step_count:
+                    continue
+                if blocked is not None and blocked[cell]:
+                    continue
+                dist[cell] = step_count
+                nxt.append((ax, ay))
+        frontier = nxt
+    return dist
+
+
+def neighbourhood(size: int, blocked: Optional[Sequence[int]],
+                  radius: int) -> List[List[Tuple[int, int]]]:
+    """For every cell, the ``(cell, distance)`` pairs within ``radius``.
+
+    Walls never move during a match, so this depends only on the board and is
+    computed once and cached.  225 searches of radius 3 visit about 25 cells
+    each - a few thousand steps, once, against 8 ms every single turn.
+    """
+    key = (size, radius, bytes(blocked) if blocked is not None else b"")
+    cached = _NEIGHBOURHOOD_CACHE.get(key)
+    if cached is not None:
+        return cached
+    out: List[List[Tuple[int, int]]] = []
+    for y in range(size):
+        for x in range(size):
+            near: List[Tuple[int, int]] = []
+            if blocked is None or not blocked[y * size + x]:
+                dist = distance_field(size, blocked, x, y, limit=radius)
+                for cell, d in enumerate(dist):
+                    if 0 < d <= radius:
+                        near.append((cell, d))
+            out.append(near)
+    _NEIGHBOURHOOD_CACHE[key] = out
+    return out
+
+
 def direction_towards(ax: int, ay: int, bx: int, by: int, size: int) -> int:
     """The single direction that shortens the toroidal distance most."""
     dx = axis_delta(ax, bx, size)
@@ -224,4 +318,5 @@ __all__ = [
     "defence_factor", "win_probability", "attack_is_worth_it",
     "expected_strength_after_attack",
     "wrap", "step", "axis_delta", "distance", "direction_towards",
+    "distance_field", "neighbourhood", "UNREACHABLE",
 ]

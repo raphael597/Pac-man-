@@ -12,7 +12,9 @@
     27.0,
     14.0,
     0.9972464021346342,
-    0.8333751053180897
+    0.8333751053180897,
+    1.0,
+    1.0
   ],
   "names": [
     "run_ahead",
@@ -27,7 +29,9 @@
     "beam_width",
     "depth",
     "attack_margin",
-    "harvest_rate"
+    "harvest_rate",
+    "facing_trust",
+    "wall_aware"
   ],
   "weights": {
     "run_ahead": 0.5092476274583364,
@@ -42,7 +46,9 @@
     "beam_width": 27,
     "depth": 14,
     "attack_margin": 0.9972464021346342,
-    "harvest_rate": 0.8333751053180897
+    "harvest_rate": 0.8333751053180897,
+    "facing_trust": 1.0,
+    "wall_aware": 1
   },
   "validation": {
     "fitness": 1.7462486427795874,

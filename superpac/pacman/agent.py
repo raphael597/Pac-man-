@@ -28,8 +28,9 @@ from typing import Dict, List, Optional, Sequence, Tuple
 from .model import RivalRegistry
 from .perception import RivalView, Snapshot, observe
 from .rules import (ACTION_NAMES, DELTAS, DIRECTION_NAMES, EAST, MOVE,
-                    N_ACTIONS, OPPOSITE, STILL, TURN_TO, defence_factor,
-                    distance, is_turn, step, win_probability)
+                    N_ACTIONS, OPPOSITE, STILL, TURN_TO, UNREACHABLE,
+                    defence_factor, distance, distance_field, is_turn,
+                    neighbourhood, step, win_probability)
 
 
 @dataclass
@@ -91,6 +92,28 @@ class Weights:
     """Scales the ``F < a/f`` attack threshold. Above 1 is bolder."""
     harvest_rate: float = 0.85
     """Cabbage per turn we expect to collect while alive - feeds ``F``."""
+    facing_trust: float = 1.0
+    """How long we believe a rival keeps looking the way it looks now.
+
+    The hunt field prices a target eight steps away with the angle it offers
+    *today*, and the search then plans up to fourteen plies on that price. A
+    rival that simply turns to meet us makes the fight head-on - 50% instead
+    of 91% - and the plan was worth a fraction of what it looked like.
+
+    Trust decays as ``facing_trust ** distance``: at 1.0 the old behaviour
+    (its facing is treated as fixed forever), below 1.0 the value slides
+    toward the head-on price as the target gets further away. 1.0 by default
+    because it is a hypothesis and the A/B decides, not the argument.
+    """
+    wall_aware: int = 1
+    """Measure distances along walkable paths (1) or straight through walls (0).
+
+    Only a switch so the two can be played against each other on identical
+    boards; on a board without walls both give the same numbers. Kept after
+    the measurement because it records which way the question was settled,
+    and because it is the one knob that turns off the whole BFS if a host
+    ever makes it too expensive.
+    """
 
     def __post_init__(self) -> None:
         # ``beam_width`` and ``depth`` end up in ``range()``.  Weights reach us
@@ -155,28 +178,36 @@ class TurnFields:
         n = size * size
         cabbage = snapshot.cabbage
 
-        # --- cabbage density, radius 3 diamond -------------------------
+        # --- cabbage density, radius 3 ---------------------------------
+        # Reachable within three steps, not "three steps as the crow flies":
+        # cabbage behind a wall is not food, it is scenery.  The neighbour
+        # lists depend only on the walls, which never move, so they are built
+        # once per board and cached.
+        blocked = (snapshot.blocked
+                   if snapshot.has_walls and weights.wall_aware else None)
+        near = neighbourhood(size, blocked, 3)
         density = [0.0] * n
-        offsets = [(dx, dy) for dx in range(-3, 4)
-                   for dy in range(abs(dx) - 3, 4 - abs(dx))]
-        for y in range(size):
-            base = y * size
-            for x in range(size):
-                total = 0
-                for dx, dy in offsets:
-                    if cabbage[((y + dy) % size) * size + ((x + dx) % size)]:
-                        total += 1
-                density[base + x] = float(total)
+        for cell in range(n):
+            total = 1 if cabbage[cell] else 0
+            for other, _ in near[cell]:
+                if cabbage[other]:
+                    total += 1
+            density[cell] = float(total)
         self.density = density
 
         # --- proximity pressure: stamped outward from each rival -------
+        # Along the paths a rival can actually walk.  With Manhattan distance
+        # a rival one step away through a wall looked like maximum danger, so
+        # the bot fled from a threat that needed four turns to reach it - and
+        # walls are exactly where it is worth standing still and eating.
+        rival_distance = [distance_field(size, blocked, r.x, r.y)
+                          for r in snapshot.rivals]
         pressure = [0.0] * n
-        for rival in snapshot.rivals:
+        for rival, dist in zip(snapshot.rivals, rival_distance):
             weight = min(3.0, rival.strength / 4.0 + 0.5)
-            for dx in range(-3, 4):
-                for dy in range(abs(dx) - 3, 4 - abs(dx)):
-                    d = abs(dx) + abs(dy)
-                    cell = ((rival.y + dy) % size) * size + ((rival.x + dx) % size)
+            for cell in range(n):
+                d = dist[cell]
+                if d <= 3:
                     pressure[cell] += (0.45 ** d) * weight
         self.pressure = pressure
 
@@ -203,7 +234,7 @@ class TurnFields:
         hunt_scale = 1.0 / (1.0 + future / max(1.0, strength))
 
         hunt = [[0.0] * n for _ in range(4)]
-        for rival in snapshot.rivals:
+        for rival, rival_dist in zip(snapshot.rivals, rival_distance):
             best_gain = 0.0
             for facing in range(4):
                 p = win_probability(strength, rival.strength, facing,
@@ -218,25 +249,36 @@ class TurnFields:
             if best_gain <= 0.0:
                 continue
             best_gain *= hunt_scale
+            # What the same fight is worth if the target turns to meet us:
+            # head-on, so its full strength defends.
+            head_on = (strength / max(1e-9, strength + rival.strength)
+                       * rival.strength * hunt_scale)
+            trust = weights.facing_trust
             for facing in range(4):
                 row = hunt[facing]
                 factor = defence_factor(facing, rival.direction)
                 p = win_probability(strength, rival.strength, facing,
                                     rival.direction)
                 immediate = p * rival.strength * hunt_scale
-                for y in range(size):
-                    dy = abs(((y - rival.y) % size + size // 2) % size - size // 2)
-                    for x in range(size):
-                        dx = abs(((x - rival.x) % size + size // 2) % size - size // 2)
-                        d = dx + dy
-                        ax, ay = step(x, y, facing, size)
-                        if (ax, ay) == (rival.x, rival.y):
-                            value = immediate       # we can strike right now
-                        else:
-                            value = best_gain * (decay ** d)
-                        cell = y * size + x
-                        if value > row[cell]:
-                            row[cell] = value
+                for cell in range(n):
+                    d = rival_dist[cell]
+                    if d >= UNREACHABLE:
+                        continue        # no path there: no gradient either
+                    x = cell % size
+                    y = cell // size
+                    ax, ay = step(x, y, facing, size)
+                    if (ax, ay) == (rival.x, rival.y):
+                        value = immediate       # we can strike right now
+                    elif trust >= 1.0:
+                        value = best_gain * (decay ** d)
+                    else:
+                        # The further off, the less its current facing tells
+                        # us, so the price slides toward the head-on one.
+                        held = trust ** d
+                        value = ((best_gain * held + head_on * (1.0 - held))
+                                 * (decay ** d))
+                    if value > row[cell]:
+                        row[cell] = value
         self.hunt = hunt
 
         # --- what our facing costs us, per (facing, cell) --------------
@@ -389,8 +431,14 @@ class Brain:
     def _proximity_pressure(self, snapshot: Snapshot, x: int, y: int) -> float:
         """Soft danger from rivals that are close but not yet aimed at us."""
         total = 0.0
+        blocked = (snapshot.blocked
+                   if snapshot.has_walls and self.weights.wall_aware else None)
         for rival in snapshot.rivals:
-            d = distance(x, y, rival.x, rival.y, snapshot.size)
+            if blocked is None:
+                d = distance(x, y, rival.x, rival.y, snapshot.size)
+            else:
+                d = distance_field(snapshot.size, blocked, rival.x, rival.y,
+                                   limit=3)[y * snapshot.size + x]
             if d <= 3:
                 total += (0.45 ** d) * min(3.0, rival.strength / 4.0 + 0.5)
         return total
