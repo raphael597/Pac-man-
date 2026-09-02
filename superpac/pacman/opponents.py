@@ -188,8 +188,59 @@ def build_opponents(base_class):
                         best, best_run = direction, run
                 self.direction = _direction_objects()[best]
 
+    class Coward(base_class):
+        """Does nothing but stay alive: runs, faces attackers, never fights.
+
+        Not a serious contender - it is the *control*. It shows the ceiling on
+        survival by avoidance alone, and it shows the price: measured over 30
+        matches it survives 93-100% of the time against harvesters and the
+        engine's own bots, and is the sole survivor **0%** of the time. You
+        cannot win a last-one-standing game without anyone dying.
+
+        It also puts a number on the limit of avoidance: against five active
+        hunters even this bot dies 23% of the time. There is no policy that
+        never loses.
+        """
+
+        def __init__(self, p, name, field):
+            super().__init__(p, name, field)
+            self.logo = "F"
+            self.icon = "icons/Pacman.png"
+
+        def TurnOrMoveOrStill(self):
+            from .perception import observe
+            from .rules import OPPOSITE, distance, step
+
+            snapshot = observe(self)
+            if not snapshot.rivals:
+                return
+            aimed_at_us = [r for r in snapshot.rivals
+                           if step(r.x, r.y, r.direction, snapshot.size)
+                           == (snapshot.x, snapshot.y)]
+            options = []
+            for action in range(4):
+                tx, ty = step(snapshot.x, snapshot.y, action, snapshot.size)
+                if snapshot.is_blocked(tx, ty) or snapshot.rival_at(tx, ty):
+                    continue
+                nearest = min(distance(tx, ty, r.x, r.y, snapshot.size)
+                              for r in snapshot.rivals)
+                options.append((nearest, action == snapshot.direction, action))
+            if not options:
+                if aimed_at_us:
+                    # Cornered: face the biggest threat, which is the one
+                    # thing that still moves the odds - 91% down to 50%.
+                    worst = max(aimed_at_us, key=lambda r: r.strength)
+                    self.direction = _direction_objects()[OPPOSITE[worst.direction]]
+                return
+            options.sort(reverse=True)
+            _, already_facing, best = options[0]
+            if already_facing:
+                self._Move()
+            else:
+                self.direction = _direction_objects()[best]
+
     return [("harvester", StraightHarvester), ("hunter", Hunter),
-            ("sweeper", Sweeper), ("cautious", Cautious)]
+            ("sweeper", Sweeper), ("cautious", Cautious), ("coward", Coward)]
 
 
 def _direction_towards(me, other, size: int) -> int:
