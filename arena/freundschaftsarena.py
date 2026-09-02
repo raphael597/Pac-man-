@@ -227,8 +227,8 @@ def _kohlfelder(brett, groesse: int) -> set:
 def spiele(aufstellung: Sequence[Tuple[type, str]], saat: int,
            groesse: int = 15, waende: Optional[list] = None,
            grenze: int = 1500,
-           aufzeichnung: Optional[dict] = None
-           ) -> Tuple[Dict[str, Protokoll], int]:
+           aufzeichnung: Optional[dict] = None,
+           mitschrift=None) -> Tuple[Dict[str, Protokoll], int]:
     """Eine Partie auf der echten Engine, Zug fuer Zug mitgeschrieben.
 
     Wird ``aufzeichnung`` uebergeben, wird sie mit dem Verlauf gefuellt:
@@ -267,11 +267,16 @@ def spiele(aufstellung: Sequence[Tuple[type, str]], saat: int,
             vor_kraft = spieler.strength
             vor_lebend = {p.name for p in brett.pacmans if p.alive}
 
+            zeile = (mitschrift.lage(brett, spieler, groesse, zug)
+                     if mitschrift is not None else None)
+
             start = time.perf_counter()
             try:
                 spieler.TurnOrMoveOrStill()
             except Exception:
                 protokoll.fehler += 1
+                if zeile is not None:
+                    zeile["fehler"] = True
             gedauert = (time.perf_counter() - start) * 1000.0
             protokoll.ms += gedauert
             protokoll.langsamster_ms = max(protokoll.langsamster_ms, gedauert)
@@ -280,6 +285,11 @@ def spiele(aufstellung: Sequence[Tuple[type, str]], saat: int,
             nach_ric = (spieler.direction._x, spieler.direction._y)
             zuwachs = spieler.strength - vor_kraft
             protokoll.zuege += 1
+
+            if zeile is not None:
+                grund = mitschrift.begruendung(spieler)
+                if grund:
+                    zeile["warum"] = grund
 
             if not spieler.alive:
                 # Nur ein selbst begonnener Angriff kann uns im eigenen Zug
@@ -310,12 +320,34 @@ def spiele(aufstellung: Sequence[Tuple[type, str]], saat: int,
                         protokolle[name].lebt = False
                         protokolle[name].gestorben_gegen = spieler.name
                         protokolle[name].gestorben_in_zug = zug
+                        if mitschrift is not None:
+                            mitschrift.markiere_tod(name, spieler.name, zug)
                 elif zuwachs > 0:
                     protokoll.kohl += int(zuwachs)
             elif nach_ric != vor_ric:
                 protokoll.gedreht += 1
             else:
                 protokoll.blockiert += 1
+
+            if zeile is not None:
+                if not spieler.alive:
+                    zeile["aktion"] = "angegriffen"
+                    zeile["ergebnis"] = ("gestorben gegen "
+                                         + str(protokoll.gestorben_gegen))
+                    zeile["tod"] = {"durch": protokoll.gestorben_gegen,
+                                    "zug": zug, "art": "Angriff verloren"}
+                elif nach_pos != vor_pos:
+                    zeile["aktion"] = "gezogen"
+                    if zuwachs > 1:
+                        zeile["ergebnis"] = f"Gegner gefressen (+{zuwachs:.0f})"
+                    elif zuwachs > 0:
+                        zeile["ergebnis"] = "Kohl"
+                elif nach_ric != vor_ric:
+                    zeile["aktion"] = "gedreht"
+                else:
+                    zeile["aktion"] = "nichts"
+                    zeile["ergebnis"] = "ohne Wirkung"
+                mitschrift.anfuegen(zeile)
 
         for p in brett.pacmans:
             protokolle[p.name].verlauf.append(float(p.strength))
@@ -535,6 +567,11 @@ def main() -> int:
                     help="eine Partie als HTML zum Anschauen hierhin schreiben")
     ap.add_argument("--replay-saat", type=int,
                     help="welche Partie ins Replay soll (Standard: --saat)")
+    ap.add_argument("--protokoll",
+                    help="Zugprotokoll als JSONL (eine Zeile je Zug je Bot)")
+    ap.add_argument("--warum",
+                    help="kuratierter Bericht als Markdown - der Text, den man "
+                         "einer KI vorlegt")
     ap.add_argument("--nur-tabelle", action="store_true")
     args = ap.parse_args()
 
@@ -584,15 +621,29 @@ def main() -> int:
                        "spieler": [n for _, n in aufstellung],
                        "rohdaten": rohdaten}, datei, indent=1)
         print(f"\nRohdaten (jeder Zug jedes Spielers): {args.bericht}")
-    if args.replay:
+    if args.replay or args.protokoll or args.warum:
+        from arena.protokoll import Mitschrift
+
         saat = args.replay_saat if args.replay_saat is not None else args.saat
         daten: dict = {}
-        protokolle, zuege = spiele(aufstellung, saat, args.feldgroesse,
-                                   waende, args.grenze, aufzeichnung=daten)
-        daten["saat"] = saat
-        daten["auswertung"] = {n: p.als_dict() for n, p in protokolle.items()}
-        schreibe_replay(args.replay, daten)
-        print(f"\nReplay ({zuege} Zuege, Saat {saat}): {args.replay}")
+        mit = Mitschrift() if (args.protokoll or args.warum) else None
+        protokolle, zuege = spiele(
+            aufstellung, saat, args.feldgroesse, waende, args.grenze,
+            aufzeichnung=daten if args.replay else None, mitschrift=mit)
+        if args.replay:
+            daten["saat"] = saat
+            daten["auswertung"] = {n: p.als_dict()
+                                   for n, p in protokolle.items()}
+            schreibe_replay(args.replay, daten)
+            print(f"\nReplay ({zuege} Zuege, Saat {saat}): {args.replay}")
+        if mit is not None:
+            if args.protokoll:
+                mit.schreibe_jsonl(args.protokoll)
+                print(f"Zugprotokoll ({len(mit.zeilen)} Zeilen): "
+                      f"{args.protokoll}")
+            if args.warum:
+                mit.bericht(args.warum)
+                print(f"Bericht fuer die KI-Anfrage: {args.warum}")
 
     print(f"\n{args.partien} Partien in {time.time() - begonnen:.1f} s")
     return 0

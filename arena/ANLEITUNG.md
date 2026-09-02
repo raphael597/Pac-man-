@@ -124,6 +124,69 @@ erbt die **volle** Stärke des Angreifers. Das ist der schnellste Weg nach
 oben im Spiel, und man kann ihn nicht planen — nur wahrscheinlicher
 machen, indem man Stärkeren nicht den Rücken zudreht.
 
+## Logs herausziehen, um mit einer KI zu verbessern
+
+```bash
+python arena/freundschaftsarena.py --partien 1 --saat 11 \
+    --warum bericht.md --protokoll zuege.jsonl
+```
+
+Zwei Ausgaben, für zwei Zwecke:
+
+**`--warum bericht.md`** ist der kuratierte Bericht — rund 7 KB, also klein
+genug, um ihn komplett in eine KI zu kippen. Darin steht zu **jedem
+Todesfall** die Vorgeschichte: die acht Züge davor, jeweils mit der Lage,
+die vorlag. Dazu ein Satz, was auffällt, und am Ende die Fragen, die man
+sinnvoll stellen kann.
+
+**`--protokoll zuege.jsonl`** ist das vollständige Maschinen-Log, eine Zeile
+je Zug je Bot, zum Auswerten mit eigenem Code.
+
+### Was in einer Zeile steht
+
+```
+Zug 60 Fueller1 11,2 Blick S k=37 Bahn N0 S0 W0 O0
+   -> gedreht/in Zug 61 gefressen von ThoresT
+   | naechster ThoresT d=1 k=40 Blick S ich 0.90 er 0.92
+```
+
+`Bahn N4` heißt vier Kohl am Stück nach Norden. `ich` und `er` sind die
+**echten Kampfwahrscheinlichkeiten der Engine** für den Fall, dass es jetzt
+zum Kampf käme — sie sagen also, wie gefährlich die aktuelle Blickrichtung
+ist. Genau daran liest man einen Tod ab: oben schauen beide nach Süden,
+also steht ThoresT im Rücken von Fueller1 und gewinnt mit 92%.
+
+Die Lage wird **von außen abgelesen**, das funktioniert also auch für den
+Bot eines Freundes, in den ihr nicht hineinschauen könnt.
+
+### Wenn euer Bot selbst erklären soll, warum
+
+Freiwillig, zwei Formen werden erkannt:
+
+```python
+def begruendung(self):
+    return "Bahn nach Osten ist 9 lang, Gegner zu schwach zum Ausweichen"
+```
+
+oder ein Attribut `brain.last_scores` — ein Dict `Handlung → Bewertung`.
+ThoresT nutzt das zweite, im Bericht steht dann pro Zug:
+
+```
+| bewertung ziehen 383.71, stehen 363.58, dreh O 67.81
+```
+
+Damit sieht man nicht nur *was* der Bot getan hat, sondern wie knapp die
+Entscheidung war. Ein Zug, bei dem die beiden besten Handlungen 20 Punkte
+auseinander liegen, ist etwas anderes als einer mit 300 Punkten Abstand.
+
+### Was man die KI dann fragt
+
+Der Bericht endet mit vier Fragen, die sich aus den Daten beantworten
+lassen — etwa „in welchem Zug war der Tod schon nicht mehr abwendbar" oder
+„wurde ein Angriff mit unter 50% Siegchance begonnen". Legt den Bericht und
+euren Bot-Quelltext zusammen vor; die Kausalkette steht dann in den Daten
+und muss nicht geraten werden.
+
 ## Sicherheitshinweis
 
 Die Bot-Dateien werden ganz normal ausgeführt, mit allen Rechten, die das

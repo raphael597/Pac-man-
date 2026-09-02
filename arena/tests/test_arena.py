@@ -116,3 +116,74 @@ class TestBotsLaden(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestProtokoll(unittest.TestCase):
+    """Das Protokoll ist nur so viel wert wie seine Kampfrechnung."""
+
+    def test_verteidigungsfaktor_stimmt_mit_der_engine_ueberein(self):
+        """Nicht gegen eine Abschrift pruefen, sondern gegen Pacman.py.
+
+        Die Engine rechnet den Faktor aus der *Summe* der beiden
+        Richtungsvektoren aus. Wer das von Hand nachbaut, dreht leicht ein
+        Vorzeichen um - und dann steht im Bericht bei jedem Todesfall die
+        falsche Wahrscheinlichkeit.
+        """
+        from Pacman import Direction
+        from arena.protokoll import verteidigungsfaktor
+
+        richtungen = {"N": Direction.north, "S": Direction.south,
+                      "W": Direction.west, "O": Direction.east}
+        for a_name, a in richtungen.items():
+            for v_name, v in richtungen.items():
+                z = a + v
+                if z._x == 0 and z._y == 0:
+                    erwartet = 1.0
+                elif abs(z._x) == 1 and abs(z._y) == 1:
+                    erwartet = 1 / 5.0
+                else:
+                    erwartet = 1 / 10.0
+                self.assertAlmostEqual(
+                    verteidigungsfaktor(a_name, v_name), erwartet, places=9,
+                    msg=f"Angreifer {a_name} gegen Verteidiger {v_name}")
+
+    def test_von_hinten_ist_besser_als_von_vorn(self):
+        from arena.protokoll import siegchance
+        vorn = siegchance(10, 10, "N", "S")
+        seite = siegchance(10, 10, "N", "W")
+        hinten = siegchance(10, 10, "N", "N")
+        self.assertAlmostEqual(vorn, 0.5, places=6)
+        self.assertLess(vorn, seite)
+        self.assertLess(seite, hinten)
+        self.assertGreater(hinten, 0.9)
+
+    def test_jeder_tote_taucht_im_protokoll_auf(self):
+        """Die meisten Bots sterben nicht am eigenen Angriff, sondern
+        werden im Zug eines anderen gefressen. Die erste Fassung hat nur
+        den ersten Fall markiert - im Bericht fehlten dadurch die
+        haeufigsten Todesfaelle vollstaendig."""
+        from arena.freundschaftsarena import spiele
+        from arena.protokoll import Mitschrift
+
+        for saat in range(1, 7):
+            mit = Mitschrift()
+            protokolle, _ = spiele(_feld(), saat=saat, grenze=400,
+                                   mitschrift=mit)
+            tote = {p.name for p in protokolle.values() if not p.lebt}
+            markiert = {z["bot"] for z in mit.zeilen if "tod" in z}
+            self.assertEqual(tote, markiert, f"Saat {saat}")
+
+    def test_bericht_nennt_jeden_todesfall(self):
+        import tempfile
+        from arena.freundschaftsarena import spiele
+        from arena.protokoll import Mitschrift
+
+        mit = Mitschrift()
+        protokolle, _ = spiele(_feld(), saat=4, grenze=400, mitschrift=mit)
+        with tempfile.NamedTemporaryFile("r+", suffix=".md") as datei:
+            mit.bericht(datei.name)
+            text = open(datei.name).read()
+        for p in protokolle.values():
+            if not p.lebt:
+                self.assertIn(p.name, text)
+                self.assertIn(f"Tot in Zug {p.gestorben_in_zug}", text)
