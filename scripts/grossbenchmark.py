@@ -77,11 +77,25 @@ def load_weights(path: str = DEFAULT_WEIGHTS_FILE):
         return Weights(**json.load(handle)["weights"])
 
 
-def variants(spec: Sequence[str]) -> Dict[str, dict]:
-    """``name=feld:wert,...`` -> Gewichts-Ueberschreibungen je Variante."""
-    out: Dict[str, dict] = {"basis": {}}
+def variants(spec: Sequence[str]) -> Dict[str, object]:
+    """Was gegeneinander antritt.
+
+    Zwei Formen, weil zwei verschiedene Fragen dahinterstehen:
+
+    ``name=feld:wert,...``
+        Unser Bot mit geaenderten Gewichten.  Beantwortet "bringt dieses
+        Gewicht etwas".
+    ``name=@harvester``
+        Ein anderer Bot als Spieler, auf denselben Brettern.  Beantwortet
+        "ist unser Bot besser als die naheliegende einfache Strategie" -
+        und das ist die Frage, die zaehlt, wenn Mitschueler antreten.
+    """
+    out: Dict[str, object] = {"basis": {}}
     for item in spec:
         name, _, rest = item.partition("=")
+        if rest.startswith("@"):
+            out[name] = rest            # Platzhalter-Bot, kein Gewicht
+            continue
         changes = {}
         for pair in filter(None, rest.split(",")):
             field, _, value = pair.partition(":")
@@ -90,21 +104,41 @@ def variants(spec: Sequence[str]) -> Dict[str, dict]:
     return out
 
 
+def describe(entry) -> str:
+    if isinstance(entry, str):
+        return f"Spieler: {entry[1:]} (nicht unser Bot)"
+    return str(entry) if entry else "(ausgelieferte Gewichte)"
+
+
 # ----------------------------------------------------------------------
 # Ein Arbeitspaket = eine Partie.  Die Worker importieren die Engine selbst,
 # weil Klassen aus Pacman.py nicht ueber einen Prozess hinweg picklebar sind.
 _STATE: dict = {}
 
 
-def _init(weights_file: str, overrides: Dict[str, dict], max_turns: int) -> None:
+def _init(weights_file: str, overrides: Dict[str, object], max_turns: int) -> None:
     import Pacman
+    from superpac.pacman.opponents import build_opponents
     from superpac.pacman.thorest import build_thorest
     from superpac.pacman.tuning import build_mix
 
     base = load_weights(weights_file)
-    _STATE["classes"] = {
-        name: build_thorest(Pacman.Pacman, weights=base.with_(**changes))
-        for name, changes in overrides.items()}
+    catalogue = dict(build_opponents(Pacman.Pacman))
+    catalogue["random"] = Pacman.Pacman
+    try:
+        from TRex import TRex
+        catalogue["trex"] = TRex
+    except Exception:
+        catalogue["trex"] = Pacman.Pacman
+
+    classes = {}
+    for name, entry in overrides.items():
+        if isinstance(entry, str):
+            classes[name] = catalogue[entry[1:]]
+        else:
+            classes[name] = build_thorest(Pacman.Pacman,
+                                          weights=base.with_(**entry))
+    _STATE["classes"] = classes
     _STATE["mixes"] = {name: build_mix(names) for name, names in MIXES.items()}
     _STATE["max_turns"] = max_turns
 
@@ -189,7 +223,7 @@ def main() -> int:
                     help="Partien je Aufstellung und Variante")
     ap.add_argument("--mixes", default=",".join(MIXES))
     ap.add_argument("--variant", action="append", default=[],
-                    help="z.B. rueckendeckung=facing_discipline:12")
+                    help="Gewicht: name=feld:wert / Bot: name=@harvester")
     ap.add_argument("--max-turns", type=int, default=400)
     ap.add_argument("--seed", type=int, default=20000)
     ap.add_argument("--workers", type=int, default=os.cpu_count() or 1)
@@ -217,8 +251,8 @@ def main() -> int:
 
     print(f"{len(jobs)} Partien: {len(overrides)} Varianten x {len(mixes)} "
           f"Aufstellungen x {args.games}, {args.workers} Prozesse")
-    for name, changes in overrides.items():
-        print(f"  Variante {name:<16s} {changes or '(ausgelieferte Gewichte)'}")
+    for name, entry in overrides.items():
+        print(f"  Variante {name:<16s} {describe(entry)}")
     sys.stdout.flush()
 
     started = time.time()
