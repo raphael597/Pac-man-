@@ -57,6 +57,22 @@ eine andere „Stufe" zwischen 0 und 1, die steuert, wie oft er sich die
 längste Kohlbahn sucht statt einfach weiterzulaufen — so besteht das Feld
 nicht aus einer Meinung in fünffacher Ausfertigung.
 
+## Auf der Größe testen, die im Turnier kommt
+
+Wenn im Turnier rund fünfzehn Bots antreten, sagt eine Sechser-Runde wenig:
+
+```bash
+python arena/freundschaftsarena.py --partien 200 --fueller 14
+```
+
+Bei 15 Spielern ist es ein anderes Spiel. Auf 197 begehbaren Feldern
+kommen statt 32 nur noch **13 Kohl auf jeden**. Wer seine Strategie darauf
+gebaut hat, in Ruhe lange Bahnen abzufressen, findet keine mehr — und wer
+Kämpfe scheut, verhungert, weil ab der Mitte nur noch Gegner Stärke
+bringen. Rechenzeit ist dabei kein Problem: gemessen kostet eine Runde mit
+15 Spielern **6,99 ms je Zug**, eine mit sechs **7,95 ms**. Bei vollerem
+Brett fallen mehr Möglichkeiten weg.
+
 ## Wie viele Partien braucht man?
 
 Das ist die wichtigste Frage, und die Antwort ist unbequem:
