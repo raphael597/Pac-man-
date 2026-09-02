@@ -1,3 +1,7 @@
 __pycache__/
 *.pyc
 dist/ThoresT/__pycache__/
+
+# Laufprotokolle der Benchmarks - regenerierbar, die Ergebnisse
+# stehen in den JSON-Dateien daneben.
+*.log
