@@ -223,7 +223,7 @@ if __name__ == "__main__":
                 "ms": ich.brain.total_ms / max(1, ich.brain.turn),
                 "worst": worst, "faults": ich.brain.faults}
 
-    print("ThoresT Selbsttest - 5 Partien, Aufstellung aus PacmanGame.py")
+    print("ThoresT Selbsttest - laeuft die Datei sauber durch?")
     print("(15x15 mit Waenden, bis nur noch einer lebt)")
     print()
     print(f"  {'seed':>4s} {'Zuege':>6s} {'Staerke':>8s} {'bester Gegner':>14s}"
@@ -253,7 +253,11 @@ if __name__ == "__main__":
     _faults = sum(r["faults"] for r in _ergebnisse)
     print()
     print(f"  allein uebrig: {_allein}/5   staerkster: {_stark}/5")
-    print("  (bei sechs gleich starken Spielern waere ~1/6 fair)")
+    print("  Achtung: 5 Partien sagen ueber die Spielstaerke nichts - das")
+    print("  Konfidenzintervall ist hier rund +-40 Punkte, und dieselbe")
+    print("  Datei liefert je nach Seed 2/5 oder 4/5. Geprueft wird hier,")
+    print("  ob die Datei laeuft und ohne Fehler entscheidet. Die belast-")
+    print("  baren Zahlen stehen in docs/ERGEBNISSE.md (12.000 Partien).")
     print(f"  {sum(r['ms'] for r in _ergebnisse) / 5:.2f} ms/Zug im Schnitt,"
           f" maximal {max(r['worst'] for r in _ergebnisse):.2f} ms,"
           f" Fehler: {_faults}")

@@ -265,6 +265,100 @@ def distance(ax: int, ay: int, bx: int, by: int, size: int) -> int:
     return min(dx, size - dx) + min(dy, size - dy)
 
 
+# --------------------------------------------------------------------------
+# Distances that respect walls
+# --------------------------------------------------------------------------
+# ``distance`` above is Manhattan on the torus.  That was exact when this was
+# written, because the first engine had no walls at all.  The teacher's second
+# engine does: ``PacmanGame.py`` builds six segments, 28 of 225 cells.  On a
+# walled board Manhattan lies in one direction only - it always reports a cell
+# as *closer* than it is, never further.  Everywhere that matters, that lie is
+# the dangerous one:
+#
+#   * threat pressure: a rival one step away through a wall cannot reach us
+#     for several turns, but gets stamped as maximum danger, so we flee from
+#     something that is not there;
+#   * hunt value: the gradient points straight at a target through a wall we
+#     cannot pass, so the pull is into the wall;
+#   * cabbage density: food behind a wall counts as if it were next door.
+#
+# A breadth-first search over the open cells gives the true distance.  The
+# board is 225 cells, so one search costs about as much as a few hundred
+# additions - nothing next to the 8 ms per turn the planner already spends.
+
+_NEIGHBOURHOOD_CACHE: Dict[tuple, List[List[Tuple[int, int]]]] = {}
+
+
+#: Distance reported for a cell the search never reached - walled off, or
+#: simply further than the ``limit`` a caller asked for.  Deliberately not a
+#: small number: it gets fed straight into ``decay ** d``, and any value that
+#: could be mistaken for a real distance would turn an unreachable target into
+#: an attractive one.
+UNREACHABLE: Final[int] = 1 << 30
+
+
+def distance_field(size: int, blocked: Optional[Sequence[int]],
+                   sx: int, sy: int, limit: Optional[int] = None) -> List[int]:
+    """True distance from ``(sx, sy)`` to every cell, walls excluded.
+
+    Walled and unreachable cells come back as :data:`UNREACHABLE`, and so do
+    cells beyond ``limit`` when one is given - ``limit`` only stops the search
+    early, it never becomes a distance.  With ``blocked`` empty the result is
+    exactly what :func:`distance` gives, so callers need no second code path
+    for boards without walls.
+    """
+    n = size * size
+    dist = [UNREACHABLE] * n
+    start = sy * size + sx
+    if blocked is not None and blocked[start]:
+        return dist
+    dist[start] = 0
+    frontier = [(sx, sy)]
+    step_count = 0
+    while frontier and (limit is None or step_count < limit):
+        step_count += 1
+        nxt = []
+        for x, y in frontier:
+            for dx, dy in DELTAS:
+                ax = (x + dx) % size
+                ay = (y + dy) % size
+                cell = ay * size + ax
+                if dist[cell] <= step_count:
+                    continue
+                if blocked is not None and blocked[cell]:
+                    continue
+                dist[cell] = step_count
+                nxt.append((ax, ay))
+        frontier = nxt
+    return dist
+
+
+def neighbourhood(size: int, blocked: Optional[Sequence[int]],
+                  radius: int) -> List[List[Tuple[int, int]]]:
+    """For every cell, the ``(cell, distance)`` pairs within ``radius``.
+
+    Walls never move during a match, so this depends only on the board and is
+    computed once and cached.  225 searches of radius 3 visit about 25 cells
+    each - a few thousand steps, once, against 8 ms every single turn.
+    """
+    key = (size, radius, bytes(blocked) if blocked is not None else b"")
+    cached = _NEIGHBOURHOOD_CACHE.get(key)
+    if cached is not None:
+        return cached
+    out: List[List[Tuple[int, int]]] = []
+    for y in range(size):
+        for x in range(size):
+            near: List[Tuple[int, int]] = []
+            if blocked is None or not blocked[y * size + x]:
+                dist = distance_field(size, blocked, x, y, limit=radius)
+                for cell, d in enumerate(dist):
+                    if 0 < d <= radius:
+                        near.append((cell, d))
+            out.append(near)
+    _NEIGHBOURHOOD_CACHE[key] = out
+    return out
+
+
 def direction_towards(ax: int, ay: int, bx: int, by: int, size: int) -> int:
     """The single direction that shortens the toroidal distance most."""
     dx = axis_delta(ax, bx, size)
@@ -863,6 +957,28 @@ class Weights:
     """Scales the ``F < a/f`` attack threshold. Above 1 is bolder."""
     harvest_rate: float = 0.85
     """Cabbage per turn we expect to collect while alive - feeds ``F``."""
+    facing_trust: float = 1.0
+    """How long we believe a rival keeps looking the way it looks now.
+
+    The hunt field prices a target eight steps away with the angle it offers
+    *today*, and the search then plans up to fourteen plies on that price. A
+    rival that simply turns to meet us makes the fight head-on - 50% instead
+    of 91% - and the plan was worth a fraction of what it looked like.
+
+    Trust decays as ``facing_trust ** distance``: at 1.0 the old behaviour
+    (its facing is treated as fixed forever), below 1.0 the value slides
+    toward the head-on price as the target gets further away. 1.0 by default
+    because it is a hypothesis and the A/B decides, not the argument.
+    """
+    wall_aware: int = 1
+    """Measure distances along walkable paths (1) or straight through walls (0).
+
+    Only a switch so the two can be played against each other on identical
+    boards; on a board without walls both give the same numbers. Kept after
+    the measurement because it records which way the question was settled,
+    and because it is the one knob that turns off the whole BFS if a host
+    ever makes it too expensive.
+    """
 
     def __post_init__(self) -> None:
         # ``beam_width`` and ``depth`` end up in ``range()``.  Weights reach us
@@ -927,28 +1043,36 @@ class TurnFields:
         n = size * size
         cabbage = snapshot.cabbage
 
-        # --- cabbage density, radius 3 diamond -------------------------
+        # --- cabbage density, radius 3 ---------------------------------
+        # Reachable within three steps, not "three steps as the crow flies":
+        # cabbage behind a wall is not food, it is scenery.  The neighbour
+        # lists depend only on the walls, which never move, so they are built
+        # once per board and cached.
+        blocked = (snapshot.blocked
+                   if snapshot.has_walls and weights.wall_aware else None)
+        near = neighbourhood(size, blocked, 3)
         density = [0.0] * n
-        offsets = [(dx, dy) for dx in range(-3, 4)
-                   for dy in range(abs(dx) - 3, 4 - abs(dx))]
-        for y in range(size):
-            base = y * size
-            for x in range(size):
-                total = 0
-                for dx, dy in offsets:
-                    if cabbage[((y + dy) % size) * size + ((x + dx) % size)]:
-                        total += 1
-                density[base + x] = float(total)
+        for cell in range(n):
+            total = 1 if cabbage[cell] else 0
+            for other, _ in near[cell]:
+                if cabbage[other]:
+                    total += 1
+            density[cell] = float(total)
         self.density = density
 
         # --- proximity pressure: stamped outward from each rival -------
+        # Along the paths a rival can actually walk.  With Manhattan distance
+        # a rival one step away through a wall looked like maximum danger, so
+        # the bot fled from a threat that needed four turns to reach it - and
+        # walls are exactly where it is worth standing still and eating.
+        rival_distance = [distance_field(size, blocked, r.x, r.y)
+                          for r in snapshot.rivals]
         pressure = [0.0] * n
-        for rival in snapshot.rivals:
+        for rival, dist in zip(snapshot.rivals, rival_distance):
             weight = min(3.0, rival.strength / 4.0 + 0.5)
-            for dx in range(-3, 4):
-                for dy in range(abs(dx) - 3, 4 - abs(dx)):
-                    d = abs(dx) + abs(dy)
-                    cell = ((rival.y + dy) % size) * size + ((rival.x + dx) % size)
+            for cell in range(n):
+                d = dist[cell]
+                if d <= 3:
                     pressure[cell] += (0.45 ** d) * weight
         self.pressure = pressure
 
@@ -975,7 +1099,7 @@ class TurnFields:
         hunt_scale = 1.0 / (1.0 + future / max(1.0, strength))
 
         hunt = [[0.0] * n for _ in range(4)]
-        for rival in snapshot.rivals:
+        for rival, rival_dist in zip(snapshot.rivals, rival_distance):
             best_gain = 0.0
             for facing in range(4):
                 p = win_probability(strength, rival.strength, facing,
@@ -990,25 +1114,36 @@ class TurnFields:
             if best_gain <= 0.0:
                 continue
             best_gain *= hunt_scale
+            # What the same fight is worth if the target turns to meet us:
+            # head-on, so its full strength defends.
+            head_on = (strength / max(1e-9, strength + rival.strength)
+                       * rival.strength * hunt_scale)
+            trust = weights.facing_trust
             for facing in range(4):
                 row = hunt[facing]
                 factor = defence_factor(facing, rival.direction)
                 p = win_probability(strength, rival.strength, facing,
                                     rival.direction)
                 immediate = p * rival.strength * hunt_scale
-                for y in range(size):
-                    dy = abs(((y - rival.y) % size + size // 2) % size - size // 2)
-                    for x in range(size):
-                        dx = abs(((x - rival.x) % size + size // 2) % size - size // 2)
-                        d = dx + dy
-                        ax, ay = step(x, y, facing, size)
-                        if (ax, ay) == (rival.x, rival.y):
-                            value = immediate       # we can strike right now
-                        else:
-                            value = best_gain * (decay ** d)
-                        cell = y * size + x
-                        if value > row[cell]:
-                            row[cell] = value
+                for cell in range(n):
+                    d = rival_dist[cell]
+                    if d >= UNREACHABLE:
+                        continue        # no path there: no gradient either
+                    x = cell % size
+                    y = cell // size
+                    ax, ay = step(x, y, facing, size)
+                    if (ax, ay) == (rival.x, rival.y):
+                        value = immediate       # we can strike right now
+                    elif trust >= 1.0:
+                        value = best_gain * (decay ** d)
+                    else:
+                        # The further off, the less its current facing tells
+                        # us, so the price slides toward the head-on one.
+                        held = trust ** d
+                        value = ((best_gain * held + head_on * (1.0 - held))
+                                 * (decay ** d))
+                    if value > row[cell]:
+                        row[cell] = value
         self.hunt = hunt
 
         # --- what our facing costs us, per (facing, cell) --------------
@@ -1161,8 +1296,14 @@ class Brain:
     def _proximity_pressure(self, snapshot: Snapshot, x: int, y: int) -> float:
         """Soft danger from rivals that are close but not yet aimed at us."""
         total = 0.0
+        blocked = (snapshot.blocked
+                   if snapshot.has_walls and self.weights.wall_aware else None)
         for rival in snapshot.rivals:
-            d = distance(x, y, rival.x, rival.y, snapshot.size)
+            if blocked is None:
+                d = distance(x, y, rival.x, rival.y, snapshot.size)
+            else:
+                d = distance_field(snapshot.size, blocked, rival.x, rival.y,
+                                   limit=3)[y * snapshot.size + x]
             if d <= 3:
                 total += (0.45 ** d) * min(3.0, rival.strength / 4.0 + 0.5)
         return total
@@ -1402,7 +1543,9 @@ TUNED_WEIGHTS = {
     "beam_width": 27,
     "depth": 14,
     "attack_margin": 0.9972464021346342,
-    "harvest_rate": 0.8333751053180897
+    "harvest_rate": 0.8333751053180897,
+    "facing_trust": 1.0,
+    "wall_aware": 1
 }
 
 THORES_WEIGHTS = Weights(**TUNED_WEIGHTS)
@@ -1486,7 +1629,7 @@ if __name__ == "__main__":
                 "ms": ich.brain.total_ms / max(1, ich.brain.turn),
                 "worst": worst, "faults": ich.brain.faults}
 
-    print("ThoresT Selbsttest - 5 Partien, Aufstellung aus PacmanGame.py")
+    print("ThoresT Selbsttest - laeuft die Datei sauber durch?")
     print("(15x15 mit Waenden, bis nur noch einer lebt)")
     print()
     print(f"  {'seed':>4s} {'Zuege':>6s} {'Staerke':>8s} {'bester Gegner':>14s}"
@@ -1516,7 +1659,11 @@ if __name__ == "__main__":
     _faults = sum(r["faults"] for r in _ergebnisse)
     print()
     print(f"  allein uebrig: {_allein}/5   staerkster: {_stark}/5")
-    print("  (bei sechs gleich starken Spielern waere ~1/6 fair)")
+    print("  Achtung: 5 Partien sagen ueber die Spielstaerke nichts - das")
+    print("  Konfidenzintervall ist hier rund +-40 Punkte, und dieselbe")
+    print("  Datei liefert je nach Seed 2/5 oder 4/5. Geprueft wird hier,")
+    print("  ob die Datei laeuft und ohne Fehler entscheidet. Die belast-")
+    print("  baren Zahlen stehen in docs/ERGEBNISSE.md (12.000 Partien).")
     print(f"  {sum(r['ms'] for r in _ergebnisse) / 5:.2f} ms/Zug im Schnitt,"
           f" maximal {max(r['worst'] for r in _ergebnisse):.2f} ms,"
           f" Fehler: {_faults}")

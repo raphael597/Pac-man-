@@ -115,6 +115,78 @@ Umdrehen, mehr Partien laufen ins Limit, und die Stärke bleibt dabei flach
 Bei 100 Partien wäre −3.6 Punkte unsichtbar gewesen. Das Gewicht existiert
 weiter, steht auf 0.0, und diese Tabelle ist der Grund.
 
+## Fünf Vorwürfe, geprüft
+
+Eine Analyse listete fünf angebliche Schwachstellen. Drei hielten stand,
+zwei nicht — und die zwei sind lehrreich, weil sie plausibel klangen.
+
+### Was nicht stimmte
+
+**„Das Gegner-Modell kollabiert bei zufälligem Verhalten, `confidence()`
+fällt und der Bot wird defensiv."** `confidence()` existiert, wird vom
+ausgelieferten Planer aber **nie aufgerufen** — die einzigen Fundstellen
+sind `describe()` (Diagnose) und ein `mean_confidence()`, das nirgends
+verwendet wird. Der Planer liest `move_probability()`, eine
+Randwahrscheinlichkeit, die gegen einen Zufallsgegner korrekt bei ~1/3
+landet.
+
+**„Bei `depth 14` und `beam_width 27` droht ein Timeout, dann fällt er auf
+`_greedy_action` zurück."** Gezählt über 4800 Partien: **0 Fehler**, 8.5 ms
+im Schnitt, 23 ms Spitze. Die Notfall-Route wurde kein einziges Mal
+erreicht.
+
+### Was stimmte: Entfernungen quer durch Wände
+
+Der Bot maß alles in Manhattan-Distanz auf dem Torus. Das war exakt, als
+die erste Engine keine Wände hatte; die zweite hat sechs Segmente, 28 von
+225 Feldern. Auf einem Brett mit Wänden lügt Manhattan immer in dieselbe
+Richtung — zu nah, nie zu weit:
+
+```
+(3,4) -> (3,6) mit einer Wand dazwischen:  Manhattan 2, tatsächlich 8
+```
+
+Betroffen waren alle drei Wertfelder: Bedrohungsdruck (Flucht vor Gegnern,
+die vier Züge brauchten), Jagd-Gradient (zeigte in die Wand) und
+Kohl-Dichte (Futter hinter der Wand zählte als Nachbar). Ersetzt durch
+Breitensuche über die begehbaren Felder; ohne Wände liefert sie
+nachweislich dieselben Zahlen wie vorher.
+
+12 000 Partien, gepaart:
+
+| | allein übrig | stärkster | unentschieden |
+|---|---|---|---|
+| echte Wege | **41.7%** [39.9, 43.5] | 65.9% | 51% |
+| durch die Wand | 32.1% [30.5, 33.8] | 65.8% | 61% |
+| | **−9.6 Punkte**, p = 2.5·10⁻²² | kein Unterschied | |
+
+Die größte Einzelverbesserung des Projekts. Nebenbei ein Beleg für den
+Messaufbau: der alte Stand landet hier bei 32.1%, ein früherer Lauf mit
+völlig anderen Seeds hatte 32.2%.
+
+### Was stimmte, aber nichts brachte
+
+**`facing_trust`** — der Suchbaum hält die Blickrichtung eines Gegners über
+14 Plies fest, obwohl der sich einfach umdrehen kann. Der Einwand ist
+richtig; die Korrektur bringt nichts: kein Unterschied auf beiden Metriken
+(p = 0.63 und 0.10), Punktschätzer leicht negativ. Bleibt auf 1.0.
+
+**`attack_margin`** — der interessanteste Fall. Im ersten Lauf sah
+vorsichtigeres Angreifen nach +0.9 Punkten aus, p = 0.036. Aber in dem Lauf
+wurden **sechs** Vergleiche gerechnet (3 Varianten × 2 Metriken), und bei
+sechs Tests ist ein p von 0.036 genau das, was der Zufall liefert; die
+korrigierte Schwelle liegt bei 0.008. Also nicht übernommen, sondern eigens
+nachgemessen — 10 800 Partien, Hauptmetrik vorher festgelegt, zwei
+Dosierungen:
+
+| | allein übrig | stärkster |
+|---|---|---|
+| `attack_margin` 0.5 | +0.5% (p = 0.27) | +0.6% (p = 0.14) |
+| `attack_margin` 0.7 | +0.2% (p = 0.55) | +0.0% (p = 1.0) |
+
+Nichts davon replizierte. Der p-Wert von 0.036 war ein Artefakt des
+Mehrfachvergleichs, wie vermutet. `attack_margin` bleibt bei 0.997.
+
 ## Gewichts-Optimierung
 
 `python scripts/tune_thorest.py --generations 9 --population 12 --games 18`
