@@ -58,13 +58,20 @@ class Snapshot:
     """Everything we can see, in a form the planner can use cheaply."""
 
     __slots__ = ("size", "cabbage", "rivals", "x", "y", "direction",
-                 "strength", "turn", "occupied", "n_cabbage")
+                 "strength", "turn", "occupied", "n_cabbage", "blocked",
+                 "has_walls")
 
     def __init__(self, size: int, cabbage: bytearray, rivals: List[RivalView],
                  x: int, y: int, direction: int, strength: float,
-                 turn: int) -> None:
+                 turn: int, blocked: Optional[bytearray] = None) -> None:
         self.size = size
         self.cabbage = cabbage
+        # ``Field`` never places a Wall today, but the class exists in the
+        # engine, so a later version of the exercise plausibly will. Tracking
+        # it costs one byte per cell and keeps the planner's model of a move
+        # identical to what ``_Move`` actually does.
+        self.blocked = blocked if blocked is not None else bytearray(size * size)
+        self.has_walls = any(self.blocked)
         self.rivals = rivals
         self.x = x
         self.y = y
@@ -78,6 +85,10 @@ class Snapshot:
     # ------------------------------------------------------------------
     def has_cabbage(self, x: int, y: int) -> bool:
         return bool(self.cabbage[y * self.size + x])
+
+    def is_blocked(self, x: int, y: int) -> bool:
+        """A wall refuses the move entirely - ``_Move`` returns without acting."""
+        return bool(self.blocked[y * self.size + x])
 
     def rival_at(self, x: int, y: int) -> Optional[RivalView]:
         return self.occupied.get((x, y))
@@ -106,17 +117,20 @@ def observe(me, turn: int = 0) -> Snapshot:
     One pass over the field dictionary.  On a 20x20 board that is 400 lookups,
     which is nothing next to the search that follows.
     """
-    from Pacman import Cabbage, Pacman  # engine classes, resolved at call time
+    from Pacman import Cabbage, Pacman, Wall  # engine classes, resolved here
 
     field = me._field
     size = _field_size(me)
     cabbage = bytearray(size * size)
+    blocked = bytearray(size * size)
     rivals: List[RivalView] = []
     index = 0
 
     for position, entry in field.items():
         if isinstance(entry, Cabbage):
             cabbage[position._y * size + position._x] = 1
+        elif isinstance(entry, Wall):
+            blocked[position._y * size + position._x] = 1
         elif isinstance(entry, Pacman) and entry is not me:
             if not getattr(entry, "alive", True):
                 continue
@@ -131,7 +145,7 @@ def observe(me, turn: int = 0) -> Snapshot:
     return Snapshot(size=size, cabbage=cabbage, rivals=rivals,
                     x=me.position._x, y=me.position._y,
                     direction=decode_direction(me.direction),
-                    strength=float(me.strength), turn=turn)
+                    strength=float(me.strength), turn=turn, blocked=blocked)
 
 
 def _field_size(me) -> int:

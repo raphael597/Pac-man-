@@ -18,6 +18,7 @@ from superpac.pacman.perception import decode_direction, observe
 from superpac.pacman.rules import (EAST, MOVE, NORTH, SOUTH, STILL, TURN_TO,
                                    WEST, attack_is_worth_it, defence_factor,
                                    distance, step, win_probability)
+from superpac.tests.helpers import make_board, step_rivals
 
 
 class TestRulesMatchTheEngine(unittest.TestCase):
@@ -100,10 +101,7 @@ class TestTorusGeometry(unittest.TestCase):
 
 class TestPerception(unittest.TestCase):
     def setUp(self):
-        random.seed(4)
-        from Pacman import Field
-        self.board = Field(15)
-        self.me = self.board.pacmans[-1]
+        self.board, self.me = make_board(seed=4)
 
     def test_sees_the_whole_board(self):
         snapshot = observe(self.me)
@@ -111,6 +109,7 @@ class TestPerception(unittest.TestCase):
         self.assertEqual(len(snapshot.rivals), 5)
         # 225 cells, six players standing on six of them.
         self.assertEqual(snapshot.n_cabbage, 225 - 6)
+        self.assertFalse(snapshot.has_walls, "no walls were requested")
 
     def test_rival_views_match_the_engine_objects(self):
         snapshot = observe(self.me)
@@ -142,27 +141,30 @@ class TestActionInference(unittest.TestCase):
         self.assertEqual(infer_action(before, RivalView("r", 3, 4, EAST, 5.0, 0)), STILL)
 
     def test_model_learns_the_engine_default_bot(self):
-        random.seed(9)
-        from Pacman import Field
-        board = Field(15)
-        me = board.pacmans[-1]
+        board, me = make_board(seed=9)
         registry = RivalRegistry()
         for turn in range(150):
             snapshot = observe(me, turn)
             registry.update(snapshot)
             registry.predict_all(snapshot)
-            for pacman in board.pacmans:
-                if pacman is not me and pacman.alive:
-                    pacman.TurnOrMoveOrStill()
+            step_rivals(board, me)
         snapshot = observe(me, 150)
         registry.update(snapshot)
         predictions = registry.predict_all(snapshot)
         self.assertTrue(predictions, "no rivals survived to model")
-        # Truth is MOVE 1/3, STILL 1/3, each turn 1/12.
+        # This engine version uses random.choice(range(2)), so the bot never
+        # *chooses* to stand still - but standing still is still observed
+        # about an eighth of the time, because a quarter of its turns pick the
+        # direction it is already facing and nothing happens. From the board
+        # that is indistinguishable from standing still, which is exactly what
+        # the model should learn.
         for distribution in predictions.values():
-            self.assertAlmostEqual(distribution[MOVE], 1 / 3, delta=0.22)
-            self.assertAlmostEqual(distribution[STILL], 1 / 3, delta=0.22)
-            self.assertLess(sum(distribution[a] for a in range(4)), 0.6)
+            self.assertGreater(distribution[MOVE], 0.30,
+                               "MOVE should dominate at roughly one half")
+            self.assertGreater(sum(distribution[a] for a in range(4)), 0.20,
+                               "real direction changes should be visible")
+            self.assertLess(distribution[STILL], 0.30,
+                            "STILL is only reachable as a no-op turn")
 
 
 if __name__ == "__main__":

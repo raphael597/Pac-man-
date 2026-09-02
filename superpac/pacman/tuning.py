@@ -105,22 +105,32 @@ def random_weights(rng: random.Random, base: Optional[Weights] = None) -> Weight
 # --------------------------------------------------------------------------
 # Opponent populations - deliberately disjoint
 # --------------------------------------------------------------------------
-TRAIN_MIX = ("harvester", "harvester", "sweeper", "cautious", "hunter")
-VALIDATION_MIX = ("harvester", "sweeper", "sweeper", "cautious", "random")
-HOLDOUT_MIX = ("hunter", "hunter", "harvester", "cautious", "sweeper")
+TRAIN_MIX = ("harvester", "trex", "sweeper", "cautious", "hunter")
+VALIDATION_MIX = ("harvester", "trex", "trex", "random", "random")
+HOLDOUT_MIX = ("hunter", "trex", "harvester", "cautious", "sweeper")
 
 
-def build_mix(names: Sequence[str]) -> List[Optional[Callable]]:
-    """Resolve opponent names to classes.  ``random`` keeps the engine's own."""
+def build_mix(names: Sequence[str]) -> List[Tuple[Callable, str]]:
+    """Resolve opponent names to ``(class, name)`` pairs for ``Field``.
+
+    ``random`` means the engine's own default bot and ``trex`` the example
+    player the teacher ships; everything else comes from our sparring set.
+    """
     import Pacman
     from .opponents import build_opponents
     catalogue = dict(build_opponents(Pacman.Pacman))
-    return [None if n == "random" else catalogue[n] for n in names]
+    try:
+        from TRex import TRex
+        catalogue["trex"] = TRex
+    except Exception:
+        catalogue["trex"] = Pacman.Pacman
+    catalogue["random"] = Pacman.Pacman
+    return [(catalogue[n], f"{n}{i}") for i, n in enumerate(names)]
 
 
 def score(weights: Weights, mix_names: Sequence[str], games: int = 24,
           base_seed: int = 4000, fieldsize: int = 15,
-          turns: int = 100) -> Dict[str, float]:
+          max_turns: int = 400) -> Dict[str, float]:
     """Play a batch and return the fitness components.
 
     Fitness leans on *placement* as well as wins: with six players a win rate
@@ -131,16 +141,23 @@ def score(weights: Weights, mix_names: Sequence[str], games: int = 24,
     from .arena import evaluate
     from .thorest import build_thorest
 
-    subject = build_thorest(Pacman.Pacman, weights=weights, total_turns=turns)
-    report = evaluate(subject, games=games, fieldsize=fieldsize, turns=turns,
+    from .arena import default_walls
+
+    subject = build_thorest(Pacman.Pacman, weights=weights, total_turns=None)
+    report = evaluate(subject, games=games, fieldsize=fieldsize,
                       base_seed=base_seed, label="candidate",
-                      fillers=build_mix(mix_names))
+                      fillers=build_mix(mix_names), walls=default_walls(),
+                      max_turns=max_turns)
     placement = 1.0 - report.mean_rank / 5.0
     relative = report.mean_strength / max(1.0, report.mean_best_rival)
-    fitness = (1.00 * report.win_rate
+    # Two ways to come out on top now: outlive everyone, or simply end up the
+    # strongest when the clock stops. Matches often do not resolve to a sole
+    # survivor, so scoring only the first would throw away most of the signal.
+    fitness = (0.70 * report.win_rate
+               + 0.50 * report.strongest_rate
                + 0.45 * placement
                + 0.25 * min(2.0, relative)
-               + 0.10 * report.survival_rate)
+               + 0.15 * report.survival_rate)
     if report.faults:
         fitness -= 1.0
     return {
@@ -148,7 +165,8 @@ def score(weights: Weights, mix_names: Sequence[str], games: int = 24,
         "rank": report.mean_rank, "strength": report.mean_strength,
         "best_rival": report.mean_best_rival,
         "survival": report.survival_rate, "ms": report.ms_sum / max(1, report.games),
-        "faults": float(report.faults),
+        "faults": float(report.faults), "strongest": report.strongest_rate,
+        "turns": report.turn_sum / max(1, report.games),
     }
 
 

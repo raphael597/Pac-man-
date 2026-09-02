@@ -20,8 +20,9 @@ from superpac.pacman.tuning import (HOLDOUT_MIX, TRAIN_MIX, VALIDATION_MIX,
 
 
 def _job(args):
-    vector, mix, games, seed = args
-    return score(Weights.from_vector(vector), mix, games=games, base_seed=seed)
+    vector, mix, games, seed, max_turns = args
+    return score(Weights.from_vector(vector), mix, games=games,
+                 base_seed=seed, max_turns=max_turns)
 
 
 def main() -> None:
@@ -32,10 +33,17 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", default="results/thorest_weights.json")
+    ap.add_argument("--start", default="",
+                    help="weights json to seed the population from")
+    ap.add_argument("--max-turns", type=int, default=300)
     args = ap.parse_args()
 
     rng = random.Random(args.seed)
     base = clamp(Weights())
+    if args.start and os.path.exists(os.path.join(ROOT, args.start)):
+        with open(os.path.join(ROOT, args.start)) as fh:
+            base = clamp(Weights.from_vector(json.load(fh)["vector"]))
+        print(f"Startpunkt: {args.start}", flush=True)
     population = [base]
     population += [mutate(base, rng, 0.35) for _ in range(args.population // 2 - 1)]
     population += [random_weights(rng, base)
@@ -48,16 +56,17 @@ def main() -> None:
             # Fresh seeds per generation so the search cannot overfit one
             # board set; identical within it so candidates compare fairly.
             batch_seed = 4000 + generation * 733
-            jobs = [(ind.as_vector(), TRAIN_MIX, args.games, batch_seed)
-                    for ind in population]
+            jobs = [(ind.as_vector(), TRAIN_MIX, args.games, batch_seed,
+                     args.max_turns) for ind in population]
             results = list(pool.map(_job, jobs))
             paired = sorted(zip(population, results),
                             key=lambda pr: -pr[1]["fitness"])
             best_w, best_s = paired[0]
             print(f"gen {generation}: fitness={best_s['fitness']:.4f} "
-                  f"win={best_s['win_rate']:.1%} rank={best_s['rank']:.2f} "
-                  f"str={best_s['strength']:.1f} vs {best_s['best_rival']:.1f} "
-                  f"surv={best_s['survival']:.0%} ms={best_s['ms']:.1f}", flush=True)
+                  f"allein={best_s['win_rate']:.0%} staerkster={best_s['strongest']:.0%} "
+                  f"rank={best_s['rank']:.2f} str={best_s['strength']:.1f} "
+                  f"vs {best_s['best_rival']:.1f} lebt={best_s['survival']:.0%} "
+                  f"ms={best_s['ms']:.1f}", flush=True)
             for w, s in paired[:3]:
                 history.append((generation, w, s["fitness"]))
 
@@ -90,17 +99,18 @@ def main() -> None:
         if not any(f == base for f in finalists):
             finalists.append(base)
 
-        jobs = [(f.as_vector(), VALIDATION_MIX, max(24, args.games * 2), 91000)
-                for f in finalists]
+        jobs = [(f.as_vector(), VALIDATION_MIX, max(24, args.games * 2), 91000,
+                 args.max_turns) for f in finalists]
         validation = list(pool.map(_job, jobs))
 
     best_index = max(range(len(finalists)), key=lambda i: validation[i]["fitness"])
     for i, (f, v) in enumerate(zip(finalists, validation)):
         tag = "  (hand-set baseline)" if f == base else ""
         mark = "  <-- champion" if i == best_index else ""
-        print(f"  candidate {i}: val_fitness={v['fitness']:.4f} "
-              f"win={v['win_rate']:.1%} rank={v['rank']:.2f} "
-              f"str={v['strength']:.1f} vs {v['best_rival']:.1f}{tag}{mark}", flush=True)
+        print(f"  Kandidat {i}: val_fitness={v['fitness']:.4f} "
+              f"allein={v['win_rate']:.0%} staerkster={v['strongest']:.0%} "
+              f"rank={v['rank']:.2f} str={v['strength']:.1f} "
+              f"vs {v['best_rival']:.1f}{tag}{mark}", flush=True)
 
     champion = finalists[best_index]
     os.makedirs(os.path.dirname(os.path.join(ROOT, args.out)), exist_ok=True)

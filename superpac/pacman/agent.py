@@ -260,7 +260,7 @@ class TurnFields:
             cx, cy = step(cx, cy, facing, size)
             if not snapshot.cabbage[cy * size + cx]:
                 break
-            if (cx, cy) in snapshot.occupied:
+            if (cx, cy) in snapshot.occupied or snapshot.blocked[cy * size + cx]:
                 break
             count += 1
         return count
@@ -270,7 +270,7 @@ class Brain:
     """Chooses one action per turn.  One instance lives for a whole match."""
 
     def __init__(self, weights: Optional[Weights] = None,
-                 total_turns: int = 100, debug: bool = False) -> None:
+                 total_turns: Optional[int] = None, debug: bool = False) -> None:
         self.weights = weights or DEFAULT_WEIGHTS
         self.registry = RivalRegistry()
         self.total_turns = total_turns
@@ -357,6 +357,8 @@ class Brain:
             cx, cy = step(cx, cy, facing, snapshot.size)
             if not snapshot.has_cabbage(cx, cy) or (cx, cy) in snapshot.occupied:
                 break
+            if snapshot.is_blocked(cx, cy):
+                break
             count += 1
         return count
 
@@ -367,11 +369,26 @@ class Brain:
         """``F``: strength we still expect to harvest if we stay alive.
 
         Feeds the ``F < a / f`` attack rule, so it is what decides whether a
-        fight is worth taking. It shrinks as the clock runs down and as the
-        board is stripped, which is exactly why the bot grows bolder late.
+        fight is worth taking. It shrinks as the board is stripped, which is
+        exactly why the bot grows bolder as the match wears on.
+
+        ``total_turns`` is ``None`` by default because the current engine has
+        **no turn limit** - ``PacmanGame`` loops until one player is left. The
+        board is then the only honest clock: what is left to harvest is the
+        cabbage still on it, divided by how many of us are chasing it.
+
+        A number may still be passed for a host that does cap the match, in
+        which case the tighter of the two clocks wins. Even then we fall back
+        on the board once the count runs out, rather than letting ``F`` pin to
+        zero and make ``F < a/f`` true for every angle - which would send the
+        bot charging into head-on fights with the board still covered.
         """
-        remaining = max(0, self.total_turns - snapshot.turn)
         available = snapshot.n_cabbage / max(1.0, 1.0 + len(snapshot.rivals))
+        if self.total_turns is None:
+            return available
+        remaining = self.total_turns - snapshot.turn
+        if remaining <= 0:
+            return available
         return min(remaining * self.weights.harvest_rate, available)
 
     def _search(self, snapshot: Snapshot) -> int:
@@ -446,6 +463,11 @@ class Brain:
             neaten = eaten
             nstrength = strength
             nalive, nbanked = alive, banked
+            if snapshot.has_walls and snapshot.is_blocked(nx, ny):
+                # ``_Move`` returns without doing anything, so the turn is
+                # simply lost. Modelling it as a move would leave the planner
+                # believing it is somewhere it never went.
+                nx, ny = x, y
             target = snapshot.rival_at(nx, ny)
             if target is not None:
                 factor = defence_factor(facing, target.direction)

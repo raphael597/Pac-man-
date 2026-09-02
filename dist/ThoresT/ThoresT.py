@@ -1,43 +1,43 @@
 """ThoresT - ein Pacman-Bot.
 
 Diese Datei enthaelt die Klasse ``ThoresT`` und alles, was sie zum Spielen
-braucht. Sie liegt **neben** der unveraenderten ``Pacman.py`` des Lehrers und
-benutzt deren Klassen.
+braucht. Sie liegt neben der unveraenderten ``Pacman.py`` und wird genauso
+benutzt wie ``TRex.py``.
 
 Benutzung
 ---------
 
-    import Pacman
-    import thorest          # <- registriert ThoresT automatisch
+    from Pacman import Direction, Field, Pacman
+    from TRex import TRex
+    from ThoresT import ThoresT
 
-    feld = Pacman.Field(15)
-    for zug in range(100):
-        for spieler in feld.pacmans:
-            if spieler.alive:
-                spieler.TurnOrMoveOrStill()
-    print(feld)
+    pacmans = [[Pacman, "Pacman1"], [Pacman, "Pacman2"],
+               [TRex, "Trex1"], [ThoresT, "ThoresT"]]
+    walls = [[[5, 3], Direction.east, 8], [[5, 4], Direction.south, 3]]
+    field = Field(15, pacmans, walls)
 
-Warum der Import genuegt: ``Field.__init__`` sucht den Namen ``ThoresT`` in
-den Modul-Globalen von *Pacman.py*. Eine Klasse aus einer anderen Datei sieht
-sie dort nicht - ``Field(15)`` wuerde stillschweigend weiter den leeren Stub
-benutzen. Der Import unten traegt die Klasse deshalb selbst ein. Wer das
-lieber ausdruecklich macht, ruft ``thorest.install()`` auf; wer den Stub
-zurueck will, ``thorest.uninstall()``.
+Fuer ``PacmanGame.py`` genuegt es, ``ThoresT`` zu importieren und in die
+``pacmans``-Liste einzutragen.
 
 Wie er spielt
 -------------
-Das Brett ist ein Torus ohne Waende und startet voller Kohl. Ein Zug ist
-*entweder* drehen *oder* gehen *oder* stehen - nie beides. Eine lange gerade
-Bahn durch Kohl ist deshalb die billigste Staerke auf dem Brett, und der Bot
-plant in Bahnen statt in Wegen.
+Das Brett ist ein Torus, es startet voller Kohl, und es gibt Waende. Ein Zug
+ist *entweder* drehen *oder* gehen *oder* stehen - nie beides. Eine lange
+gerade Bahn durch Kohl ist deshalb die billigste Staerke auf dem Brett, und
+der Bot plant in Bahnen statt in Wegen.
 
-Sechs Spieler raeumen ein 15x15-Brett bis etwa Zug 55 leer. Danach gibt es
-Staerke nur noch von anderen Spielern, also stellt er auf Jagen um.
+Irgendwann ist der Kohl weg. Danach gibt es Staerke nur noch von anderen
+Spielern, also stellt er auf Jagen um. Wann genau, entscheidet ein einziger
+Ausdruck: ``F``, die erwartete Resternte.
 
 Kaempfe entscheidet der Winkel: wer in dieselbe Richtung laeuft wie ich,
 verteidigt mit einem Zehntel seiner Staerke (90.9% statt 50% bei gleicher
 Staerke). Also von hinten angreifen - und wenn man selbst angegriffen wird,
 dem Angreifer entgegenschauen, das drueckt seine Chance von 91% auf 50%.
+
+Von jedem Gegner fuehrt er ein eigenes Verhaltensmodell. Deren Aktion laesst
+sich aus dem Brett exakt zurueckrechnen: Position geaendert -> gegangen,
+Blickrichtung geaendert -> gedreht, nichts -> gestanden.
 
 Erzeugt von scripts/build_standalone.py. Nur Standardbibliothek.
 Gebaut: 2026-09-02
@@ -52,7 +52,7 @@ from typing import Deque, Dict, List, Optional, Sequence, Tuple
 from typing import Dict, Final, Iterable, List, Optional, Sequence, Tuple
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from Pacman import Cabbage, Direction, Empty, Pacman, Position
+from Pacman import Cabbage, Direction, Empty, Pacman, Position, Wall
 
 # ----------------------------------------------------------------------
 # superpac/pacman/rules.py
@@ -333,13 +333,20 @@ class Snapshot:
     """Everything we can see, in a form the planner can use cheaply."""
 
     __slots__ = ("size", "cabbage", "rivals", "x", "y", "direction",
-                 "strength", "turn", "occupied", "n_cabbage")
+                 "strength", "turn", "occupied", "n_cabbage", "blocked",
+                 "has_walls")
 
     def __init__(self, size: int, cabbage: bytearray, rivals: List[RivalView],
                  x: int, y: int, direction: int, strength: float,
-                 turn: int) -> None:
+                 turn: int, blocked: Optional[bytearray] = None) -> None:
         self.size = size
         self.cabbage = cabbage
+        # ``Field`` never places a Wall today, but the class exists in the
+        # engine, so a later version of the exercise plausibly will. Tracking
+        # it costs one byte per cell and keeps the planner's model of a move
+        # identical to what ``_Move`` actually does.
+        self.blocked = blocked if blocked is not None else bytearray(size * size)
+        self.has_walls = any(self.blocked)
         self.rivals = rivals
         self.x = x
         self.y = y
@@ -353,6 +360,10 @@ class Snapshot:
     # ------------------------------------------------------------------
     def has_cabbage(self, x: int, y: int) -> bool:
         return bool(self.cabbage[y * self.size + x])
+
+    def is_blocked(self, x: int, y: int) -> bool:
+        """A wall refuses the move entirely - ``_Move`` returns without acting."""
+        return bool(self.blocked[y * self.size + x])
 
     def rival_at(self, x: int, y: int) -> Optional[RivalView]:
         return self.occupied.get((x, y))
@@ -384,12 +395,15 @@ def observe(me, turn: int = 0) -> Snapshot:
     field = me._field
     size = _field_size(me)
     cabbage = bytearray(size * size)
+    blocked = bytearray(size * size)
     rivals: List[RivalView] = []
     index = 0
 
     for position, entry in field.items():
         if isinstance(entry, Cabbage):
             cabbage[position._y * size + position._x] = 1
+        elif isinstance(entry, Wall):
+            blocked[position._y * size + position._x] = 1
         elif isinstance(entry, Pacman) and entry is not me:
             if not getattr(entry, "alive", True):
                 continue
@@ -404,7 +418,7 @@ def observe(me, turn: int = 0) -> Snapshot:
     return Snapshot(size=size, cabbage=cabbage, rivals=rivals,
                     x=me.position._x, y=me.position._y,
                     direction=decode_direction(me.direction),
-                    strength=float(me.strength), turn=turn)
+                    strength=float(me.strength), turn=turn, blocked=blocked)
 
 
 def _field_size(me) -> int:
@@ -1018,7 +1032,7 @@ class TurnFields:
             cx, cy = step(cx, cy, facing, size)
             if not snapshot.cabbage[cy * size + cx]:
                 break
-            if (cx, cy) in snapshot.occupied:
+            if (cx, cy) in snapshot.occupied or snapshot.blocked[cy * size + cx]:
                 break
             count += 1
         return count
@@ -1028,7 +1042,7 @@ class Brain:
     """Chooses one action per turn.  One instance lives for a whole match."""
 
     def __init__(self, weights: Optional[Weights] = None,
-                 total_turns: int = 100, debug: bool = False) -> None:
+                 total_turns: Optional[int] = None, debug: bool = False) -> None:
         self.weights = weights or DEFAULT_WEIGHTS
         self.registry = RivalRegistry()
         self.total_turns = total_turns
@@ -1115,6 +1129,8 @@ class Brain:
             cx, cy = step(cx, cy, facing, snapshot.size)
             if not snapshot.has_cabbage(cx, cy) or (cx, cy) in snapshot.occupied:
                 break
+            if snapshot.is_blocked(cx, cy):
+                break
             count += 1
         return count
 
@@ -1125,11 +1141,26 @@ class Brain:
         """``F``: strength we still expect to harvest if we stay alive.
 
         Feeds the ``F < a / f`` attack rule, so it is what decides whether a
-        fight is worth taking. It shrinks as the clock runs down and as the
-        board is stripped, which is exactly why the bot grows bolder late.
+        fight is worth taking. It shrinks as the board is stripped, which is
+        exactly why the bot grows bolder as the match wears on.
+
+        ``total_turns`` is ``None`` by default because the current engine has
+        **no turn limit** - ``PacmanGame`` loops until one player is left. The
+        board is then the only honest clock: what is left to harvest is the
+        cabbage still on it, divided by how many of us are chasing it.
+
+        A number may still be passed for a host that does cap the match, in
+        which case the tighter of the two clocks wins. Even then we fall back
+        on the board once the count runs out, rather than letting ``F`` pin to
+        zero and make ``F < a/f`` true for every angle - which would send the
+        bot charging into head-on fights with the board still covered.
         """
-        remaining = max(0, self.total_turns - snapshot.turn)
         available = snapshot.n_cabbage / max(1.0, 1.0 + len(snapshot.rivals))
+        if self.total_turns is None:
+            return available
+        remaining = self.total_turns - snapshot.turn
+        if remaining <= 0:
+            return available
         return min(remaining * self.weights.harvest_rate, available)
 
     def _search(self, snapshot: Snapshot) -> int:
@@ -1204,6 +1235,11 @@ class Brain:
             neaten = eaten
             nstrength = strength
             nalive, nbanked = alive, banked
+            if snapshot.has_walls and snapshot.is_blocked(nx, ny):
+                # ``_Move`` returns without doing anything, so the turn is
+                # simply lost. Modelling it as a move would leave the planner
+                # believing it is somewhere it never went.
+                nx, ny = x, y
             target = snapshot.rival_at(nx, ny)
             if target is not None:
                 factor = defence_factor(facing, target.direction)
@@ -1315,24 +1351,22 @@ TUNED_WEIGHTS = {
 
 THORES_WEIGHTS = Weights(**TUNED_WEIGHTS)
 
-#: Spiellaenge aus dem Test-Notebook des Lehrers. Fliesst nur in die
-#: Schaetzung "wieviel Ernte liegt noch vor mir" ein, die entscheidet, ab wann
-#: Jagen mehr wert ist als Ernten. Ein falscher Wert kostet Schaerfe, nicht
-#: Korrektheit.
-TOTAL_TURNS = 100
-
 _DIRECTION_OBJECTS = (Direction.north, Direction.south,
                       Direction.west, Direction.east)
 
 
 class ThoresT(Pacman):
-    """Unser Spieler."""
+    """Unser Spieler. Wird wie TRex in die pacmans-Liste eingetragen."""
 
     def __init__(self, p, name, field):
         super().__init__(p, name, field)
         self.logo = "T"
+        self.icon = "icons/TRex.png"   # fuer PacmanRenderer
         self.direction = Direction.west
-        self.brain = Brain(weights=THORES_WEIGHTS, total_turns=TOTAL_TURNS)
+        # total_turns=None: die Engine hat kein Zuglimit, PacmanGame laeuft
+        # bis nur noch einer lebt. Der Kohl auf dem Brett ist dann die
+        # einzige ehrliche Uhr.
+        self.brain = Brain(weights=THORES_WEIGHTS, total_turns=None)
 
     def TurnOrMoveOrStill(self):
         # Die Engine ignoriert den Rueckgabewert, also wuerde jede Exception,
@@ -1352,46 +1386,30 @@ class ThoresT(Pacman):
             self.brain.faults += 1
 
 
-# --------------------------------------------------------------------------
-# Registrierung
-# --------------------------------------------------------------------------
-def install():
-    """Traegt ThoresT in Pacman.py ein, damit ``Field()`` ihn benutzt."""
-    import Pacman as _engine
-    _engine.ThoresT = ThoresT
-    return ThoresT
-
-
-def uninstall():
-    """Stellt den urspruenglichen ThoresT des Lehrers wieder her."""
-    import Pacman as _engine
-    if _ORIGINAL_THOREST is not None:
-        _engine.ThoresT = _ORIGINAL_THOREST
-
-
-def _remember_original():
-    import Pacman as _engine
-    return getattr(_engine, "ThoresT", None)
-
-
-_ORIGINAL_THOREST = _remember_original()
-install()
-
-
 if __name__ == "__main__":
     import random as _random
     import time as _time
 
-    _random.seed(1)
     from Pacman import Field as _Field
 
-    _feld = _Field(15)
-    _ich = _feld.pacmans[-1]
-    assert isinstance(_ich, ThoresT), (
-        "Field() hat nicht unsere Klasse benutzt - liegt Pacman.py daneben?")
+    try:
+        from TRex import TRex as _TRex
+    except Exception:
+        _TRex = Pacman
+
+    _random.seed(1)
+    _pacmans = [[Pacman, "Pacman1"], [Pacman, "Pacman2"], [Pacman, "Pacman3"],
+                [_TRex, "Trex1"], [_TRex, "Trex2"], [ThoresT, "ThoresT"]]
+    _walls = [[[5, 3], Direction.east, 8], [[5, 4], Direction.south, 3],
+              [[12, 4], Direction.south, 3], [[2, 12], Direction.east, 8],
+              [[2, 11], Direction.north, 3], [[9, 11], Direction.north, 3]]
+    _feld = _Field(15, _pacmans, _walls)
+    _ich = next(p for p in _feld.pacmans if p.name == "ThoresT")
+
     _worst = 0.0
-    for _zug in range(TOTAL_TURNS):
-        for _p in _feld.pacmans:
+    _zug = 0
+    while sum(1 for p in _feld.pacmans if p.alive) > 1 and _zug < 1500:
+        for _p in _random.sample(_feld.pacmans, len(_feld.pacmans)):
             if not _p.alive:
                 continue
             if _p is _ich:
@@ -1400,17 +1418,20 @@ if __name__ == "__main__":
                 _worst = max(_worst, (_time.perf_counter() - _t0) * 1000.0)
             else:
                 _p.TurnOrMoveOrStill()
+        _zug += 1
 
-    print("ThoresT Selbsttest (15x15, 100 Zuege)")
+    print("ThoresT Selbsttest (15x15 mit Waenden, bis nur noch einer lebt)")
     print()
     for _p in sorted(_feld.pacmans, key=lambda q: -q.strength):
         _mark = "   <-- wir" if _p is _ich else ""
         _tot = "  (tot)" if not _p.alive else ""
         print(f"  {_p.name:<10s} {_p.strength:6.0f}{_tot}{_mark}")
     _rivals = [_p.strength for _p in _feld.pacmans if _p is not _ich]
+    _lebende = sum(1 for p in _feld.pacmans if p.alive)
     print()
+    print(f"  nach {_zug} Zuegen, {_lebende} Spieler noch am Leben")
     print(f"  ThoresT {_ich.strength:.0f} gegen besten Gegner {max(_rivals):.0f}"
-          f"  ->  {'SIEG' if _ich.strength > max(_rivals) else 'verloren'}")
+          f"  ->  {'SIEG' if _ich.strength > max(_rivals) and _ich.alive else 'verloren'}")
     print(f"  {_ich.brain.total_ms / max(1, _ich.brain.turn):.2f} ms/Zug, "
           f"maximal {_worst:.2f} ms, Fehler: {_ich.brain.faults}")
     assert _ich.brain.faults == 0, "die Notfall-Route wurde benutzt"

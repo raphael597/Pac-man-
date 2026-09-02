@@ -27,7 +27,8 @@ def execute(me, action: int) -> None:
 
 
 def build_thorest(base_class, weights: Optional[Weights] = None,
-                  total_turns: int = 100, debug: bool = False):
+                  total_turns: Optional[int] = None, debug: bool = False,
+                  icon: str = "icons/TRex.png"):
     """Make a ``ThoresT`` subclass of the engine's ``Pacman``.
 
     Built as a factory so the arena can produce variants (different weights,
@@ -38,6 +39,7 @@ def build_thorest(base_class, weights: Optional[Weights] = None,
         def __init__(self, p, name, field):
             super().__init__(p, name, field)
             self.logo = "T"
+            self.icon = icon      # PacmanRenderer draws this
             from Pacman import Direction
             self.direction = Direction.west
             self.brain = Brain(weights=weights, total_turns=total_turns,

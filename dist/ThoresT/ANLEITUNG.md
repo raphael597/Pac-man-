@@ -1,82 +1,46 @@
 # ThoresT
 
-Mein Pacman-Bot als eigene Datei. `Pacman.py` in diesem Ordner ist die Engine
-unverändert, so wie sie ausgeteilt wurde — daran ist nichts geändert.
+Mein Pacman-Bot als eigene Datei — genau wie `TRex.py`. Die Engine-Dateien in
+diesem Ordner (`Pacman.py`, `PacmanGame.py`, `PacmanRenderer.py`, `TRex.py`,
+`icons/`) sind unverändert.
 
 ## Sofort ausprobieren
 
 ```bash
-python thorest.py
+python ThoresT.py      # eine Partie, nur Text
+python beispiel.py     # zehn Partien mit Statistik
+python PacmanGame.py   # grafisch (braucht pygame)
 ```
 
-Spielt eine Partie und zeigt das Ergebnis:
+## Einbauen
 
-```
-ThoresT Selbsttest (15x15, 100 Zuege)
-
-  T             103   <-- wir
-  Pacman_4       22
-  Pacman_3       19  (tot)
-  ...
-  ThoresT 103 gegen besten Gegner 22  ->  SIEG
-  6.38 ms/Zug, maximal 10.34 ms, Fehler: 0
-```
-
-## Im eigenen Code benutzen
+`ThoresT` wird wie `TRex` in die Spielerliste eingetragen:
 
 ```python
-import Pacman
-import thorest          # <- diese Zeile genügt
+from Pacman import Direction, Field, Pacman
+from TRex import TRex
+from ThoresT import ThoresT          # <- nur diese Zeile dazu
 
-feld = Pacman.Field(15)
-for zug in range(100):
-    for spieler in feld.pacmans:
-        if spieler.alive:
-            spieler.TurnOrMoveOrStill()
-print(feld)
+pacmans = [[Pacman, "Pacman1"], [Pacman, "Pacman2"], [Pacman, "Pacman3"],
+           [TRex, "Trex1"], [ThoresT, "ThoresT"]]        # <- und hier
+walls = [[[5, 3], Direction.east, 8], [[5, 4], Direction.south, 3]]
+field = Field(15, pacmans, walls)
 ```
 
-### Warum reicht der Import?
-
-`Field.__init__` baut den letzten Spieler so:
-
-```python
-pacman = ThoresT(pos, f"T", self.field)
-```
-
-Diesen Namen sucht Python in den Globalen von **Pacman.py**. Eine Klasse aus
-einer anderen Datei steht dort nicht — `Field(15)` würde also weiter den
-leeren Stub nehmen, und man wundert sich, warum der Bot nichts tut. Deshalb
-trägt `thorest.py` sich beim Import selbst ein.
-
-Wer das lieber ausdrücklich schreibt:
-
-```python
-import Pacman, thorest
-thorest.install()                    # dasselbe, nur sichtbar
-Pacman.ThoresT = thorest.ThoresT     # oder direkt
-
-thorest.uninstall()                  # zurück zum Stub des Lehrers
-```
-
-## Die Klasse in Pacman.py einbauen
-
-Falls alles in einer Datei sein soll, liegt unter
-`variante_alles_in_einer_datei/Pacman.py` die Engine mit bereits
-eingebautem ThoresT. Einfach statt der eigenen `Pacman.py` benutzen — das
-Notebook läuft unverändert damit.
+In `PacmanGame.py` sind das genau zwei geänderte Zeilen: der Import oben und
+ein Eintrag in `pacmans`.
 
 ## Dateien
 
 | Datei | was drin ist |
 |---|---|
-| `thorest.py` | **die Klasse** — eigenständig, nur Standardbibliothek |
-| `Pacman.py` | Engine des Lehrers, unverändert |
-| `PacmanTest.ipynb` | Test-Notebook |
-| `beispiel.py` | Minimalbeispiel |
-| `variante_alles_in_einer_datei/Pacman.py` | Engine + ThoresT in einer Datei |
+| `ThoresT.py` | **die Klasse** — eigenständig, nur Standardbibliothek |
+| `Pacman.py`, `PacmanGame.py`, `PacmanRenderer.py`, `TRex.py` | Engine, unverändert |
+| `icons/` | Sprites für den Renderer |
+| `beispiel.py` | zehn Partien mit Statistik |
 
-Keine Installation, keine Zusatzpakete, Python 3.8+.
+Keine Installation, keine Zusatzpakete (außer `pygame` für die grafische
+Variante), Python 3.8+.
 
 ---
 
@@ -88,8 +52,8 @@ Alles aus `Pacman._Move` gelesen.
 
 `TurnOrMoveOrStill` macht *entweder* drehen *oder* gehen *oder* stehen. Eine
 lange gerade Bahn durch Kohl ist darum die billigste Stärke auf dem Brett.
-Der Bot plant in Bahnen, nicht in Wegen. Wände gibt es keine — das Feld ist
-ein Torus, `Wall` wird nie erzeugt.
+Der Bot plant in Bahnen, nicht in Wegen. Das Feld ist ein Torus — links raus
+heißt rechts rein.
 
 ### Der Winkel entscheidet jeden Kampf
 
@@ -126,15 +90,17 @@ angreifen   ⟺   F < a / f          (F = erwartete Resternte)
 
 Die Stärke des Ziels **kürzt sich heraus**. Der Winkel entscheidet *ob* man
 zuschlägt, die Größe nur *wieviel* man gewinnt. Und `f = 1` (frontal) heißt
-`F < a`: spät im Spiel, wenn kaum noch Ernte übrig ist, wird auch der
-frontale Angriff richtig.
+`F < a`: wenn kaum noch Ernte übrig ist, wird auch der frontale Angriff
+richtig.
 
 ### Zwei Spielhälften
 
-Sechs Spieler räumen ein 15×15-Brett bis etwa Zug 55 leer. Danach kommt
-Stärke nur noch von anderen Spielern. Genau ein Ausdruck regelt den Übergang:
-`F`, die erwartete Resternte. Er steuert die Angriffsschwelle *und* wie stark
-das Jagdfeld zieht.
+Irgendwann ist der Kohl weg. Danach kommt Stärke nur noch von anderen
+Spielern. Genau ein Ausdruck regelt den Übergang: `F`, die erwartete
+Resternte. Er steuert die Angriffsschwelle *und* wie stark das Jagdfeld zieht.
+
+Weil `PacmanGame` kein Zuglimit hat — es läuft, bis nur noch einer lebt —
+ist `F` allein aus dem Brett geschätzt und nicht aus einer Rundenzahl.
 
 ### Gegnermodell
 
@@ -144,23 +110,23 @@ gestanden. Der Bot führt für jeden Gegner ein eigenes Modell (Häufigkeiten,
 Zweier-Folgen, Kontext) und sagt daraus vorher, wer sich als nächstes wohin
 bewegt.
 
+Nebenbei: der Standard-Bot der Engine steht nie absichtlich still
+(`random.choice(range(2))`), aber von außen sieht man ihn in etwa jedem
+achten Zug stillstehen — weil ein Viertel seiner Drehungen die Richtung
+wählt, in die er ohnehin schon schaut. Das Modell lernt genau das.
+
 ---
 
 ## Wie stark er ist
 
-40 Partien je Zeile auf der echten Engine. Bei sechs gleich starken Spielern
-wären 16.7% fair.
+Gegen die Aufstellung aus `PacmanGame.py` (3× Pacman, 2× TRex), 40 Partien:
 
-| Gegner | ThoresT | einfacher Ernte-Bot |
-|---|---|---|
-| 5× Zufallsbot (Original) | 90.0% · Stärke **93.9** | 92.5% · 76.5 |
-| 5× Ernte-Bot | **50.0%** · 67.8 | 12.5% · 36.6 |
-| 5× Serpentinen-Bot | **37.5%** · 62.6 | 25.0% · 58.9 |
-| gemischt | **25.0%** · 53.5 | 15.0% · 47.9 |
-| 5× Jäger | 27.5% · 56.3 | 30.0% · 54.9 |
+| | ThoresT |
+|---|---|
+| allein übrig | 65% |
+| stärkster am Ende | 70% |
+| mittlere Stärke | 131.7 (bester Gegner 76.0) |
 
-Gegen fünf Jäger ist er nicht der Beste — dort überlebt er nur 28%. Das ist
-ein gemessener Zielkonflikt: mehr Vorsicht kauft dort Überleben und kostet
-überall sonst ein Sechstel der Ernte.
+Bei sechs gleich starken Spielern wären 17% fair.
 
-Rechenzeit: 6.4 ms pro Zug im Schnitt, maximal 11 ms.
+Rechenzeit: rund 4 ms pro Zug.

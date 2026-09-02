@@ -82,43 +82,43 @@ def strip_module(path: str):
 HEADER = '''"""ThoresT - ein Pacman-Bot.
 
 Diese Datei enthaelt die Klasse ``ThoresT`` und alles, was sie zum Spielen
-braucht. Sie liegt **neben** der unveraenderten ``Pacman.py`` des Lehrers und
-benutzt deren Klassen.
+braucht. Sie liegt neben der unveraenderten ``Pacman.py`` und wird genauso
+benutzt wie ``TRex.py``.
 
 Benutzung
 ---------
 
-    import Pacman
-    import thorest          # <- registriert ThoresT automatisch
+    from Pacman import Direction, Field, Pacman
+    from TRex import TRex
+    from ThoresT import ThoresT
 
-    feld = Pacman.Field(15)
-    for zug in range(100):
-        for spieler in feld.pacmans:
-            if spieler.alive:
-                spieler.TurnOrMoveOrStill()
-    print(feld)
+    pacmans = [[Pacman, "Pacman1"], [Pacman, "Pacman2"],
+               [TRex, "Trex1"], [ThoresT, "ThoresT"]]
+    walls = [[[5, 3], Direction.east, 8], [[5, 4], Direction.south, 3]]
+    field = Field(15, pacmans, walls)
 
-Warum der Import genuegt: ``Field.__init__`` sucht den Namen ``ThoresT`` in
-den Modul-Globalen von *Pacman.py*. Eine Klasse aus einer anderen Datei sieht
-sie dort nicht - ``Field(15)`` wuerde stillschweigend weiter den leeren Stub
-benutzen. Der Import unten traegt die Klasse deshalb selbst ein. Wer das
-lieber ausdruecklich macht, ruft ``thorest.install()`` auf; wer den Stub
-zurueck will, ``thorest.uninstall()``.
+Fuer ``PacmanGame.py`` genuegt es, ``ThoresT`` zu importieren und in die
+``pacmans``-Liste einzutragen.
 
 Wie er spielt
 -------------
-Das Brett ist ein Torus ohne Waende und startet voller Kohl. Ein Zug ist
-*entweder* drehen *oder* gehen *oder* stehen - nie beides. Eine lange gerade
-Bahn durch Kohl ist deshalb die billigste Staerke auf dem Brett, und der Bot
-plant in Bahnen statt in Wegen.
+Das Brett ist ein Torus, es startet voller Kohl, und es gibt Waende. Ein Zug
+ist *entweder* drehen *oder* gehen *oder* stehen - nie beides. Eine lange
+gerade Bahn durch Kohl ist deshalb die billigste Staerke auf dem Brett, und
+der Bot plant in Bahnen statt in Wegen.
 
-Sechs Spieler raeumen ein 15x15-Brett bis etwa Zug 55 leer. Danach gibt es
-Staerke nur noch von anderen Spielern, also stellt er auf Jagen um.
+Irgendwann ist der Kohl weg. Danach gibt es Staerke nur noch von anderen
+Spielern, also stellt er auf Jagen um. Wann genau, entscheidet ein einziger
+Ausdruck: ``F``, die erwartete Resternte.
 
 Kaempfe entscheidet der Winkel: wer in dieselbe Richtung laeuft wie ich,
 verteidigt mit einem Zehntel seiner Staerke (90.9% statt 50% bei gleicher
 Staerke). Also von hinten angreifen - und wenn man selbst angegriffen wird,
 dem Angreifer entgegenschauen, das drueckt seine Chance von 91% auf 50%.
+
+Von jedem Gegner fuehrt er ein eigenes Verhaltensmodell. Deren Aktion laesst
+sich aus dem Brett exakt zurueckrechnen: Position geaendert -> gegangen,
+Blickrichtung geaendert -> gedreht, nichts -> gestanden.
 
 Erzeugt von scripts/build_standalone.py. Nur Standardbibliothek.
 Gebaut: {built}
@@ -127,7 +127,7 @@ Gewichte: {weights_source}
 
 {imports}
 
-from Pacman import Cabbage, Direction, Empty, Pacman, Position
+from Pacman import Cabbage, Direction, Empty, Pacman, Position, Wall
 
 '''
 
@@ -144,24 +144,22 @@ TUNED_WEIGHTS = {weights_dict}
 
 THORES_WEIGHTS = Weights(**TUNED_WEIGHTS)
 
-#: Spiellaenge aus dem Test-Notebook des Lehrers. Fliesst nur in die
-#: Schaetzung "wieviel Ernte liegt noch vor mir" ein, die entscheidet, ab wann
-#: Jagen mehr wert ist als Ernten. Ein falscher Wert kostet Schaerfe, nicht
-#: Korrektheit.
-TOTAL_TURNS = 100
-
 _DIRECTION_OBJECTS = (Direction.north, Direction.south,
                       Direction.west, Direction.east)
 
 
 class ThoresT(Pacman):
-    """Unser Spieler."""
+    """Unser Spieler. Wird wie TRex in die pacmans-Liste eingetragen."""
 
     def __init__(self, p, name, field):
         super().__init__(p, name, field)
         self.logo = "T"
+        self.icon = "icons/TRex.png"   # fuer PacmanRenderer
         self.direction = Direction.west
-        self.brain = Brain(weights=THORES_WEIGHTS, total_turns=TOTAL_TURNS)
+        # total_turns=None: die Engine hat kein Zuglimit, PacmanGame laeuft
+        # bis nur noch einer lebt. Der Kohl auf dem Brett ist dann die
+        # einzige ehrliche Uhr.
+        self.brain = Brain(weights=THORES_WEIGHTS, total_turns=None)
 
     def TurnOrMoveOrStill(self):
         # Die Engine ignoriert den Rueckgabewert, also wuerde jede Exception,
@@ -181,46 +179,30 @@ class ThoresT(Pacman):
             self.brain.faults += 1
 
 
-# --------------------------------------------------------------------------
-# Registrierung
-# --------------------------------------------------------------------------
-def install():
-    """Traegt ThoresT in Pacman.py ein, damit ``Field()`` ihn benutzt."""
-    import Pacman as _engine
-    _engine.ThoresT = ThoresT
-    return ThoresT
-
-
-def uninstall():
-    """Stellt den urspruenglichen ThoresT des Lehrers wieder her."""
-    import Pacman as _engine
-    if _ORIGINAL_THOREST is not None:
-        _engine.ThoresT = _ORIGINAL_THOREST
-
-
-def _remember_original():
-    import Pacman as _engine
-    return getattr(_engine, "ThoresT", None)
-
-
-_ORIGINAL_THOREST = _remember_original()
-install()
-
-
 if __name__ == "__main__":
     import random as _random
     import time as _time
 
-    _random.seed(1)
     from Pacman import Field as _Field
 
-    _feld = _Field(15)
-    _ich = _feld.pacmans[-1]
-    assert isinstance(_ich, ThoresT), (
-        "Field() hat nicht unsere Klasse benutzt - liegt Pacman.py daneben?")
+    try:
+        from TRex import TRex as _TRex
+    except Exception:
+        _TRex = Pacman
+
+    _random.seed(1)
+    _pacmans = [[Pacman, "Pacman1"], [Pacman, "Pacman2"], [Pacman, "Pacman3"],
+                [_TRex, "Trex1"], [_TRex, "Trex2"], [ThoresT, "ThoresT"]]
+    _walls = [[[5, 3], Direction.east, 8], [[5, 4], Direction.south, 3],
+              [[12, 4], Direction.south, 3], [[2, 12], Direction.east, 8],
+              [[2, 11], Direction.north, 3], [[9, 11], Direction.north, 3]]
+    _feld = _Field(15, _pacmans, _walls)
+    _ich = next(p for p in _feld.pacmans if p.name == "ThoresT")
+
     _worst = 0.0
-    for _zug in range(TOTAL_TURNS):
-        for _p in _feld.pacmans:
+    _zug = 0
+    while sum(1 for p in _feld.pacmans if p.alive) > 1 and _zug < 1500:
+        for _p in _random.sample(_feld.pacmans, len(_feld.pacmans)):
             if not _p.alive:
                 continue
             if _p is _ich:
@@ -229,17 +211,20 @@ if __name__ == "__main__":
                 _worst = max(_worst, (_time.perf_counter() - _t0) * 1000.0)
             else:
                 _p.TurnOrMoveOrStill()
+        _zug += 1
 
-    print("ThoresT Selbsttest (15x15, 100 Zuege)")
+    print("ThoresT Selbsttest (15x15 mit Waenden, bis nur noch einer lebt)")
     print()
     for _p in sorted(_feld.pacmans, key=lambda q: -q.strength):
         _mark = "   <-- wir" if _p is _ich else ""
         _tot = "  (tot)" if not _p.alive else ""
         print(f"  {_p.name:<10s} {_p.strength:6.0f}{_tot}{_mark}")
     _rivals = [_p.strength for _p in _feld.pacmans if _p is not _ich]
+    _lebende = sum(1 for p in _feld.pacmans if p.alive)
     print()
+    print(f"  nach {_zug} Zuegen, {_lebende} Spieler noch am Leben")
     print(f"  ThoresT {_ich.strength:.0f} gegen besten Gegner {max(_rivals):.0f}"
-          f"  ->  {'SIEG' if _ich.strength > max(_rivals) else 'verloren'}")
+          f"  ->  {'SIEG' if _ich.strength > max(_rivals) and _ich.alive else 'verloren'}")
     print(f"  {_ich.brain.total_ms / max(1, _ich.brain.turn):.2f} ms/Zug, "
           f"maximal {_worst:.2f} ms, Fehler: {_ich.brain.faults}")
     assert _ich.brain.faults == 0, "die Notfall-Route wurde benutzt"
@@ -249,7 +234,7 @@ if __name__ == "__main__":
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--weights", default="results/thorest_weights.json")
-    ap.add_argument("--out", default="dist/ThoresT/thorest.py")
+    ap.add_argument("--out", default="dist/ThoresT/ThoresT.py")
     args = ap.parse_args()
 
     weights_path = os.path.join(ROOT, args.weights)
@@ -282,6 +267,29 @@ def main() -> None:
     text = header + "\n\n".join(bodies) + footer
 
     ast.parse(text)
+
+    # The header's import list is hand-written, so a new engine class used
+    # deeper in the package would only surface as a NameError at play time -
+    # every turn falling through to the fallback while the file still imports
+    # cleanly. Check the names actually referenced instead of trusting it.
+    engine_names = {"Cabbage", "Direction", "Empty", "Pacman", "Position", "Wall"}
+    tree = ast.parse(text)
+    # Read the *real* top-level import, not the example inside the docstring -
+    # a textual search finds the docstring first and reports every class as
+    # missing.
+    imported = set()
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom) and node.module == "Pacman":
+            imported.update(a.name for a in node.names)
+    referenced = {node.id for node in ast.walk(tree)
+                  if isinstance(node, ast.Name)} | {
+                  node.attr for node in ast.walk(tree)
+                  if isinstance(node, ast.Attribute)}
+    missing = sorted((engine_names & referenced) - imported)
+    if missing:
+        raise SystemExit(
+            f"engine classes used but not imported in the header: {missing}")
+
     out_path = os.path.join(ROOT, args.out)
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, "w") as fh:

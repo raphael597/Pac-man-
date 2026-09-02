@@ -13,6 +13,7 @@ from superpac.pacman.opponents import build_opponents
 from superpac.pacman.perception import observe
 from superpac.pacman.rules import EAST, MOVE, N_ACTIONS, STILL, WEST, is_turn
 from superpac.pacman.thorest import build_thorest, execute
+from superpac.tests.helpers import make_board, step_rivals, teacher_walls, wall_off
 
 
 def _thorest(**kwargs):
@@ -22,25 +23,17 @@ def _thorest(**kwargs):
 
 class TestLegality(unittest.TestCase):
     def test_only_ever_returns_a_real_action(self):
-        import Pacman
-        random.seed(2)
-        board = Pacman.Field(15)
-        me = board.pacmans[-1]
+        board, me = make_board(seed=2)
         brain = Brain()
         for _ in range(60):
             action = brain.decide(me)
             self.assertIn(action, range(N_ACTIONS))
             execute(me, action)
-            for pacman in board.pacmans:
-                if pacman is not me and pacman.alive:
-                    pacman.TurnOrMoveOrStill()
+            step_rivals(board, me)
         self.assertEqual(brain.faults, 0)
 
     def test_execute_does_exactly_one_engine_thing(self):
-        import Pacman
-        random.seed(3)
-        board = Pacman.Field(15)
-        me = board.pacmans[-1]
+        board, me = make_board(seed=3)
         before = (me.position._x, me.position._y)
 
         execute(me, EAST)  # a turn
@@ -56,10 +49,7 @@ class TestLegality(unittest.TestCase):
 
     def test_turning_to_the_current_facing_is_never_chosen(self):
         # It would waste the whole turn for nothing; the search prunes it.
-        import Pacman
-        random.seed(5)
-        board = Pacman.Field(15)
-        me = board.pacmans[-1]
+        board, me = make_board(seed=5)
         brain = Brain()
         for _ in range(40):
             snapshot = observe(me, brain.turn)
@@ -71,10 +61,7 @@ class TestLegality(unittest.TestCase):
 
 class TestRobustness(unittest.TestCase):
     def test_survives_a_broken_subsystem(self):
-        import Pacman
-        random.seed(6)
-        board = Pacman.Field(15)
-        me = board.pacmans[-1]
+        board, me = make_board(seed=6)
         brain = Brain()
 
         class Exploding:
@@ -93,13 +80,7 @@ class TestRobustness(unittest.TestCase):
         self.assertEqual(brain.faults, 1)
 
     def test_thorest_never_raises_out_of_turn_or_move_or_still(self):
-        import Pacman
-        random.seed(7)
-        ThoresT = _thorest()
-        board = Pacman.Field(15)
-        me = ThoresT(board.pacmans[-1].position, "T", board.field)
-        board.field[me.position] = me
-        board.pacmans[-1] = me
+        board, me = make_board(seed=7, subject=_thorest(), subject_name="T")
 
         # Feed it a deliberately broken brain.
         class Broken:
@@ -114,9 +95,7 @@ class TestRobustness(unittest.TestCase):
 
     def test_copes_with_a_field_of_one_survivor(self):
         import Pacman
-        random.seed(8)
-        board = Pacman.Field(15)
-        me = board.pacmans[-1]
+        board, me = make_board(seed=8)
         for pacman in board.pacmans[:-1]:
             pacman.alive = False
             del board.field[pacman.position]
@@ -130,43 +109,56 @@ class TestRobustness(unittest.TestCase):
         self.assertGreater(me.strength, 1, "should still be eating")
 
     def test_works_on_other_board_sizes(self):
-        import Pacman
-        for size in (8, 12, 20):
-            random.seed(size)
-            result = play(_thorest(), seed=size, fieldsize=size, turns=40)
-            self.assertEqual(result.faults, 0)
+        for size in (8, 12, 20, 25):
+            result = play(_thorest(), seed=size, fieldsize=size,
+                          walls=[], max_turns=60)
+            self.assertEqual(result.faults, 0, f"faults on a {size}x{size} board")
             self.assertGreater(result.subject_strength, 1)
+
+    def test_works_with_the_teachers_wall_layout(self):
+        result = play(_thorest(), seed=3, walls=teacher_walls(), max_turns=200)
+        self.assertEqual(result.faults, 0)
+        self.assertGreater(result.subject_strength, 10)
 
 
 class TestPlaysWell(unittest.TestCase):
     def test_beats_the_engines_own_bots_convincingly(self):
-        report = evaluate(_thorest(), games=12, label="thorest")
+        """The teacher's own line-up: three default Pacmen and two TRex.
+
+        The bar is "clearly better than one of six", not a specific number.
+        With six players, chance is 16.7%; a flat 60% was inherited from the
+        previous engine, where matches were 100 turns and nobody hunted. Here
+        matches run until one player is left and the TRex bots snowball, so
+        the same bot legitimately lands lower while still dominating.
+        """
+        report = evaluate(_thorest(), games=12, label="thorest", max_turns=300)
         self.assertEqual(report.faults, 0)
-        self.assertGreater(report.win_rate, 0.6,
-                           f"only {report.win_rate:.0%} against the default bots")
-        self.assertGreater(report.mean_strength, 2.5 * report.mean_best_rival)
+        self.assertGreater(report.strongest_rate, 0.40,
+                           f"strongest in only {report.strongest_rate:.0%} "
+                           f"of games (chance would be 17%)")
+        self.assertGreater(report.mean_strength, 1.5 * report.mean_best_rival)
 
     def test_beats_a_straight_line_harvester(self):
         import Pacman
         harvester = dict(build_opponents(Pacman.Pacman))["harvester"]
-        report = evaluate(_thorest(), games=12, label="thorest",
-                          fillers=[harvester] * 5)
+        report = evaluate(_thorest(), games=12, label="thorest", max_turns=300,
+                          fillers=[(harvester, f"H{i}") for i in range(5)])
         self.assertEqual(report.faults, 0)
-        # Six identical players would each win 1/6 of the time.
-        self.assertGreater(report.win_rate, 1 / 6,
+        # Six identical players would each end strongest 1/6 of the time.
+        self.assertGreater(report.strongest_rate, 1 / 6,
                            "no better than being one harvester among six")
 
     def test_the_do_nothing_stub_loses(self):
-        # Guards the arena itself: if a player that never acts ever "wins",
-        # the harness is measuring something other than the game.
+        # Guards the arena itself: if a player that never acts ever comes out
+        # strongest, the harness is measuring something other than the game.
         import Pacman
 
         class Stub(Pacman.Pacman):
             def TurnOrMoveOrStill(self):
                 return
 
-        report = evaluate(Stub, games=8, label="stub")
-        self.assertEqual(report.wins, 0)
+        report = evaluate(Stub, games=8, label="stub", max_turns=300)
+        self.assertEqual(report.strongest, 0)
         self.assertLess(report.mean_strength, 10.0)
 
 
@@ -187,3 +179,75 @@ class TestWeights(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestRuleChangeRobustness(unittest.TestCase):
+    """Guards against the two most likely ways the exercise could change.
+
+    Neither is speculative decoration: a hard-coded match length silently
+    broke the attack rule past turn 100, and the engine already ships a
+    ``Wall`` class that ``Field`` merely happens not to use yet.
+    """
+
+    def test_future_value_survives_outliving_the_assumed_match_length(self):
+        board, me = make_board(seed=5)
+        brain = Brain(total_turns=100)
+
+        early = brain.future_value(observe(me, 0))
+        self.assertGreater(early, 1.0)
+
+        # Past the assumed end, with the board still untouched, the turn
+        # budget carries no information - falling back on it would pin F to 0
+        # and make "attack anything" true for every angle.
+        for turn in (100, 150, 300):
+            late = brain.future_value(observe(me, turn))
+            self.assertAlmostEqual(late, early, delta=0.01,
+                                   msg=f"F collapsed at turn {turn}")
+
+    def test_future_value_still_falls_as_the_board_empties(self):
+        import Pacman
+        board, me = make_board(seed=6)
+        brain = Brain(total_turns=100)
+        full = brain.future_value(observe(me, 0))
+
+        for position, entry in list(board.field.items()):
+            if isinstance(entry, Pacman.Cabbage):
+                del board.field[position]
+                board.field[position] = Pacman.Empty(position)
+        self.assertLess(brain.future_value(observe(me, 0)), 0.1 * full)
+
+    def test_walls_are_seen_and_never_walked_into(self):
+        board, me = make_board(seed=11)
+
+        walls = wall_off(board)
+        self.assertGreater(walls, 10)
+
+        snapshot = observe(me)
+        self.assertTrue(snapshot.has_walls)
+        self.assertEqual(sum(snapshot.blocked), walls)
+        self.assertTrue(snapshot.is_blocked(1, 1))
+        self.assertFalse(snapshot.is_blocked(0, 0))
+
+        brain = Brain()
+        for _ in range(60):
+            snapshot = observe(me, brain.turn)
+            action = brain.decide(me)
+            if action == MOVE:
+                from superpac.pacman.rules import step
+                target = step(snapshot.x, snapshot.y, snapshot.direction,
+                              snapshot.size)
+                self.assertFalse(snapshot.is_blocked(*target),
+                                 "planned a move straight into a wall")
+            execute(me, action)
+            step_rivals(board, me)
+        self.assertEqual(brain.faults, 0)
+
+    def test_a_walled_board_still_gets_played(self):
+        board, me = make_board(seed=12)
+        wall_off(board)
+        brain = Brain()
+        for _ in range(100):
+            execute(me, brain.decide(me))
+            step_rivals(board, me)
+        self.assertEqual(brain.faults, 0)
+        self.assertGreater(me.strength, 30, "barely harvested around the walls")

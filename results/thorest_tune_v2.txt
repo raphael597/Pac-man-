@@ -1,0 +1,3 @@
+Startpunkt: results/thorest_weights_v1_alt.json
+gen 0: fitness=1.6500 allein=7% staerkster=100% rank=0.00 str=102.9 vs 50.7 lebt=100% ms=4.6
+gen 1: fitness=1.7279 allein=29% staerkster=93% rank=0.29 str=111.9 vs 46.6 lebt=93% ms=5.7
