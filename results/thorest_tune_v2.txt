@@ -1,3 +1,37 @@
 Startpunkt: results/thorest_weights_v1_alt.json
 gen 0: fitness=1.6500 allein=7% staerkster=100% rank=0.00 str=102.9 vs 50.7 lebt=100% ms=4.6
 gen 1: fitness=1.7279 allein=29% staerkster=93% rank=0.29 str=111.9 vs 46.6 lebt=93% ms=5.7
+gen 2: fitness=1.5314 allein=7% staerkster=86% rank=0.29 str=119.8 vs 54.9 lebt=86% ms=4.1
+gen 3: fitness=1.6050 allein=14% staerkster=86% rank=0.14 str=126.8 vs 51.8 lebt=93% ms=5.1
+gen 4: fitness=1.3062 allein=14% staerkster=71% rank=0.50 str=89.1 vs 66.1 lebt=71% ms=4.7
+gen 5: fitness=1.7186 allein=36% staerkster=86% rank=0.43 str=132.3 vs 47.2 lebt=86% ms=5.7
+gen 6: fitness=1.9407 allein=57% staerkster=93% rank=0.14 str=138.5 vs 48.2 lebt=93% ms=5.9
+gen 7: fitness=1.5140 allein=36% staerkster=71% rank=0.79 str=98.6 vs 60.1 lebt=79% ms=4.4
+gen 8: fitness=1.7050 allein=57% staerkster=71% rank=1.21 str=115.1 vs 56.0 lebt=71% ms=6.5
+
+re-scoring finalists on the VALIDATION mix...
+  Kandidat 0: val_fitness=1.2553 allein=7% staerkster=64% rank=0.61 str=129.3 vs 82.5
+  Kandidat 1: val_fitness=1.2531 allein=25% staerkster=57% rank=1.04 str=99.9 vs 72.5
+  Kandidat 2: val_fitness=1.5375 allein=21% staerkster=71% rank=0.36 str=142.2 vs 66.4
+  Kandidat 3: val_fitness=1.4895 allein=39% staerkster=64% rank=0.79 str=122.5 vs 73.4
+  Kandidat 4: val_fitness=1.3553 allein=32% staerkster=64% rank=1.00 str=110.0 vs 78.0
+  Kandidat 5: val_fitness=1.7462 allein=61% staerkster=68% rank=0.57 str=125.3 vs 65.8  <-- champion
+  Kandidat 6: val_fitness=1.1869 allein=29% staerkster=54% rank=1.21 str=100.8 vs 84.5
+  Kandidat 7: val_fitness=1.1999 allein=32% staerkster=50% rank=1.21 str=98.4 vs 79.5
+  Kandidat 8: val_fitness=1.4101 allein=14% staerkster=71% rank=0.57 str=134.2 vs 75.0  (hand-set baseline)
+
+champion -> results/thorest_weights_v2.json after 481s
+{
+  "run_ahead": 0.5092476274583364,
+  "run_discount": 0.7,
+  "density": 0.2306303930609958,
+  "hunt": 0.5707016575701158,
+  "hunt_decay": 0.759902542978583,
+  "exposure": 4.080579424569696,
+  "survival_bonus": 18.28829690521761,
+  "discount": 0.999,
+  "beam_width": 27,
+  "depth": 14,
+  "attack_margin": 0.9972464021346342,
+  "harvest_rate": 0.8333751053180897
+}
