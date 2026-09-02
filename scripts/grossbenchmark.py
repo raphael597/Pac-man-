@@ -66,6 +66,19 @@ MIXES: Dict[str, Tuple[str, ...]] = {
     "gemischt":    ("hunter", "sweeper", "cautious", "harvester", "trex"),
     # Nur unsere staerksten Sparringspartner.
     "hart":        ("sweeper", "sweeper", "hunter", "cautious", "harvester"),
+    # --- 15 Spieler: die Groesse, die im Turnier zu erwarten ist ---------
+    # Alle Zahlen dieses Projekts stammten lange aus Sechser-Runden. Bei 15
+    # Spielern aendert sich das Spiel spuerbar: auf 197 begehbaren Feldern
+    # kommen statt 32 nur noch 13 Kohl auf jeden, und future_value - der
+    # Wert, der Angriff und Jagd steuert - faellt damit auf ein Drittel.
+    # Der Bot wird also viel frueher mutig. Ob das richtig ist, muss
+    # gemessen werden und nicht angenommen.
+    "turnier15":   ("random", "random", "random", "trex", "trex",
+                    "harvester", "harvester", "harvester", "sweeper",
+                    "sweeper", "hunter", "hunter", "cautious", "coward"),
+    "turnier15hart": ("harvester", "harvester", "sweeper", "sweeper",
+                      "sweeper", "hunter", "hunter", "hunter", "cautious",
+                      "cautious", "coward", "trex", "harvester", "sweeper"),
 }
 
 DEFAULT_WEIGHTS_FILE = "results/thorest_weights.json"
