@@ -1,31 +1,32 @@
-ENDSTAND - ThoresT auf der echten Engine des Lehrers
-(40 Spiele je Zeile, 15x15, 100 Zuege;
- bei sechs gleich starken Spielern waeren 16.7% fair)
+ENDSTAND - ThoresT auf der Engine des Lehrers (Version 2)
+(40 Partien je Zeile, 15x15 mit Waenden, bis nur noch einer lebt
+ oder 400 Zuege erreicht sind; bei sechs gleich starken Spielern
+ waeren 16.7% fair)
 
-Gegner                   Spieler        Sieg     +-  Staerke  bester Geg   Rang   lebt     ms
----------------------------------------------------------------------------------------------
-5x Zufallsbot (Lehrer)   ThoresT      90.0%  9.3%     93.9        36.9   0.10   90%   6.60
-                         harvester    92.5%  8.2%     76.5        33.8   0.17   92%   0.00
-                         sweeper      80.0% 12.4%     73.5        35.6   0.40   80%   0.00
-                         Stub          0.0%  0.0%      1.0        37.0   4.95   70%   0.00
+Gegner                   Spieler      allein  staerkster     +-  staerke   bester   rang   lebt     ms
+------------------------------------------------------------------------------------------------------
+Aufstellung des Lehrers  ThoresT      52.5%      52.5% 15.5%    109.5     83.7   1.25   52%   7.29
+                         harvester     0.0%      12.5% 10.2%     52.0    111.2   1.93   42%   0.00
+                         sweeper       0.0%      17.5% 11.8%     36.0    102.5   2.58   42%   0.00
+                         Stub          0.0%       0.0%  0.0%      1.1    111.1   4.83   18%   0.00
 
-5x harvester             ThoresT      50.0% 15.5%     67.8        56.7   1.20   75%   6.46
-                         harvester    12.5% 10.2%     36.6        46.2   2.45  100%   0.00
-                         sweeper      27.5% 13.8%     44.0        61.5   3.12   45%   0.00
-                         Stub          0.0%  0.0%      1.0        51.9   5.00  100%   0.00
+5x Zufallsbot            ThoresT      72.5%      72.5% 13.8%    139.8     59.2   0.53   72%   6.76
+                         harvester     5.0%      20.0% 12.4%     59.2    101.8   1.80   38%   0.00
+                         sweeper      10.0%      30.0% 14.2%     55.9     90.0   2.12   42%   0.00
+                         Stub          0.0%       2.5%  4.8%      4.0    101.0   4.72   28%   0.00
 
-5x sweeper               ThoresT      37.5% 15.0%     62.6        78.0   1.27   62%   7.42
-                         harvester    25.0% 13.4%     58.9        94.3   1.62   28%   0.00
-                         sweeper      15.0% 11.1%     35.3        76.8   2.33   98%   0.00
-                         Stub          0.0%  0.0%      1.0        85.0   4.90   15%   0.00
+5x TRex                  ThoresT      35.0%      60.0% 15.2%    114.5     56.8   0.88   60%   7.17
+                         harvester     2.5%      27.5% 13.8%     56.4     64.6   1.35   45%   0.00
+                         sweeper       0.0%      25.0% 13.4%     30.6     53.0   2.17   68%   0.00
+                         Stub          0.0%       0.0%  0.0%      1.1     63.2   4.90   28%   0.00
 
-gemischt                 ThoresT      25.0% 13.4%     53.5        91.2   2.10   57%   6.67
-                         harvester    15.0% 11.1%     47.9        82.3   2.10   70%   0.00
-                         sweeper      22.5% 12.9%     48.7        88.3   2.42   65%   0.00
-                         Stub          0.0%  0.0%      1.4        99.4   4.90   22%   0.00
+5x Ernte-Bot             ThoresT      15.0%      62.5% 15.0%     89.7     54.1   0.88   62%   6.88
+                         harvester     0.0%      10.0%  9.3%     27.5     44.4   2.62  100%   0.00
+                         sweeper       2.5%      35.0% 14.8%     54.7     58.1   2.45   55%   0.00
+                         Stub          0.0%       0.0%  0.0%      1.0     52.6   5.00  100%   0.00
 
-5x hunter                ThoresT      27.5% 13.8%     56.3        96.2   1.20   28%   5.81
-                         harvester    30.0% 14.2%     54.9        94.8   1.30   30%   0.00
-                         sweeper      50.0% 15.5%     68.9        75.2   1.02   62%   0.00
-                         Stub          0.0%  0.0%      1.5        87.3   4.45    5%   0.00
+gemischt stark           ThoresT      22.5%      65.0% 14.8%    105.2     61.8   0.80   70%   6.00
+                         harvester     2.5%      32.5% 14.5%     46.9     76.3   1.60   70%   0.00
+                         sweeper       0.0%      17.5% 11.8%     31.3     84.8   2.83   32%   0.00
+                         Stub          0.0%       0.0%  0.0%      1.0     83.3   4.85   12%   0.00
 

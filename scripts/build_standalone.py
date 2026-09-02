@@ -190,44 +190,74 @@ if __name__ == "__main__":
     except Exception:
         _TRex = Pacman
 
-    _random.seed(1)
-    _pacmans = [[Pacman, "Pacman1"], [Pacman, "Pacman2"], [Pacman, "Pacman3"],
-                [_TRex, "Trex1"], [_TRex, "Trex2"], [ThoresT, "ThoresT"]]
     _walls = [[[5, 3], Direction.east, 8], [[5, 4], Direction.south, 3],
               [[12, 4], Direction.south, 3], [[2, 12], Direction.east, 8],
               [[2, 11], Direction.north, 3], [[9, 11], Direction.north, 3]]
-    _feld = _Field(15, _pacmans, _walls)
-    _ich = next(p for p in _feld.pacmans if p.name == "ThoresT")
 
-    _worst = 0.0
-    _zug = 0
-    while sum(1 for p in _feld.pacmans if p.alive) > 1 and _zug < 1500:
-        for _p in _random.sample(_feld.pacmans, len(_feld.pacmans)):
-            if not _p.alive:
-                continue
-            if _p is _ich:
-                _t0 = _time.perf_counter()
-                _p.TurnOrMoveOrStill()
-                _worst = max(_worst, (_time.perf_counter() - _t0) * 1000.0)
-            else:
-                _p.TurnOrMoveOrStill()
-        _zug += 1
+    def _partie(seed):
+        """Eine Partie wie in PacmanGame: Reihenfolge jede Runde neu
+        gewuerfelt, laeuft bis nur noch einer lebt."""
+        _random.seed(seed)
+        pacmans = [[Pacman, "Pacman1"], [Pacman, "Pacman2"], [Pacman, "Pacman3"],
+                   [_TRex, "Trex1"], [_TRex, "Trex2"], [ThoresT, "ThoresT"]]
+        feld = _Field(15, pacmans, _walls)
+        ich = next(p for p in feld.pacmans if p.name == "ThoresT")
+        worst = 0.0
+        zug = 0
+        while sum(1 for p in feld.pacmans if p.alive) > 1 and zug < 600:
+            for p in _random.sample(feld.pacmans, len(feld.pacmans)):
+                if not p.alive:
+                    continue
+                if p is ich:
+                    t0 = _time.perf_counter()
+                    p.TurnOrMoveOrStill()
+                    worst = max(worst, (_time.perf_counter() - t0) * 1000.0)
+                else:
+                    p.TurnOrMoveOrStill()
+            zug += 1
+        lebende = [p for p in feld.pacmans if p.alive]
+        gegner = max(p.strength for p in feld.pacmans if p is not ich)
+        return {"zug": zug, "staerke": ich.strength, "gegner": gegner,
+                "allein": ich.alive and len(lebende) == 1,
+                "staerkster": ich.strength > gegner, "lebt": ich.alive,
+                "ms": ich.brain.total_ms / max(1, ich.brain.turn),
+                "worst": worst, "faults": ich.brain.faults}
 
-    print("ThoresT Selbsttest (15x15 mit Waenden, bis nur noch einer lebt)")
+    print("ThoresT Selbsttest - 5 Partien, Aufstellung aus PacmanGame.py")
+    print("(15x15 mit Waenden, bis nur noch einer lebt)")
     print()
-    for _p in sorted(_feld.pacmans, key=lambda q: -q.strength):
-        _mark = "   <-- wir" if _p is _ich else ""
-        _tot = "  (tot)" if not _p.alive else ""
-        print(f"  {_p.name:<10s} {_p.strength:6.0f}{_tot}{_mark}")
-    _rivals = [_p.strength for _p in _feld.pacmans if _p is not _ich]
-    _lebende = sum(1 for p in _feld.pacmans if p.alive)
+    print(f"  {'seed':>4s} {'Zuege':>6s} {'Staerke':>8s} {'bester Gegner':>14s}"
+          f" {'Ergebnis':>16s}")
+    print("  " + "-" * 54)
+    # Eine einzelne Partie sagt hier fast nichts - die Kaempfe sind
+    # Wuerfelwuerfe, und ein Selbsttest, der genau einen Seed zeigt, sagt
+    # mehr ueber den Seed als ueber den Bot.
+    _ergebnisse = [_partie(s) for s in range(1, 6)]
+    for _seed, _r in enumerate(_ergebnisse, start=1):
+        # Zwei Arten zu gewinnen, seit das Spiel laeuft bis einer uebrig ist.
+        # Nur Staerken zu vergleichen wuerde einen Alleinueberlebenden als
+        # Niederlage melden, blos weil ein toter Gegner mehr angesammelt hat.
+        if _r["allein"]:
+            _urteil = "ALLEIN UEBRIG"
+        elif _r["staerkster"]:
+            _urteil = "staerkster"
+        elif _r["lebt"]:
+            _urteil = "lebt noch"
+        else:
+            _urteil = "gestorben"
+        print(f"  {_seed:>4d} {_r['zug']:>6d} {_r['staerke']:>8.0f}"
+              f" {_r['gegner']:>14.0f} {_urteil:>16s}")
+
+    _allein = sum(r["allein"] for r in _ergebnisse)
+    _stark = sum(r["staerkster"] for r in _ergebnisse)
+    _faults = sum(r["faults"] for r in _ergebnisse)
     print()
-    print(f"  nach {_zug} Zuegen, {_lebende} Spieler noch am Leben")
-    print(f"  ThoresT {_ich.strength:.0f} gegen besten Gegner {max(_rivals):.0f}"
-          f"  ->  {'SIEG' if _ich.strength > max(_rivals) and _ich.alive else 'verloren'}")
-    print(f"  {_ich.brain.total_ms / max(1, _ich.brain.turn):.2f} ms/Zug, "
-          f"maximal {_worst:.2f} ms, Fehler: {_ich.brain.faults}")
-    assert _ich.brain.faults == 0, "die Notfall-Route wurde benutzt"
+    print(f"  allein uebrig: {_allein}/5   staerkster: {_stark}/5")
+    print("  (bei sechs gleich starken Spielern waere ~1/6 fair)")
+    print(f"  {sum(r['ms'] for r in _ergebnisse) / 5:.2f} ms/Zug im Schnitt,"
+          f" maximal {max(r['worst'] for r in _ergebnisse):.2f} ms,"
+          f" Fehler: {_faults}")
+    assert _faults == 0, "die Notfall-Route wurde benutzt"
 '''
 
 

@@ -12,20 +12,22 @@ python -m unittest discover -s superpac/tests -t .   # 128 Tests
 
 ## Was der Bot kann
 
-40 Partien je Zeile auf der echten Engine. Bei sechs gleich starken Spielern
-wären 16.7% fair.
+40 Partien je Zeile auf der echten Engine, 15×15 mit Wänden, bis nur noch
+einer lebt. Bei sechs gleich starken Spielern wären **16.7%** fair.
+„Allein übrig" ist die Siegbedingung von `PacmanGame`; „stärkster" zählt,
+wenn die Partie nicht aufgelöst wird.
 
-| Gegner | ThoresT | harvester | sweeper |
-|---|---|---|---|
-| 5× Zufallsbot (Lehrer) | 90.0% · Stärke **93.9** | 92.5% · 76.5 | 80.0% · 73.5 |
-| 5× harvester | **50.0%** · 67.8 | 12.5% · 36.6 | 27.5% · 44.0 |
-| 5× sweeper | **37.5%** · 62.6 | 25.0% · 58.9 | 15.0% · 35.3 |
-| gemischt | **25.0%** · 53.5 | 15.0% · 47.9 | 22.5% · 48.7 |
-| 5× hunter | 27.5% · 56.3 | 30.0% · 54.9 | **50.0%** · 68.9 |
+| Gegner | | allein übrig | stärkster | Stärke |
+|---|---|---|---|---|
+| **Aufstellung aus PacmanGame.py** | ThoresT | **52.5%** | **52.5%** | **109.5** |
+| (3× Pacman, 2× TRex) | Ernte-Bot | 0.0% | 12.5% | 52.0 |
+| | Serpentinen-Bot | 0.0% | 17.5% | 36.0 |
+| **5× Zufallsbot** | ThoresT | **72.5%** | **72.5%** | **139.8** |
+| **5× TRex** | ThoresT | **35.0%** | **60.0%** | **114.5** |
+| **5× Ernte-Bot** | ThoresT | **15.0%** | **62.5%** | **89.7** |
+| **gemischt stark** | ThoresT | **22.5%** | **65.0%** | **105.2** |
 
-Gegen fünf Jäger ist der stumpfe `sweeper` besser als wir — das ist ein
-gemessener Zielkonflikt, kein Versehen, und in `docs/ERGEBNISSE.md` mit den
-Zahlen belegt.
+Bester in allen fünf Szenarien, auf beiden Kriterien.
 
 ## Die drei Regeln, die das Spiel entscheiden
 

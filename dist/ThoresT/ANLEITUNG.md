@@ -119,14 +119,45 @@ wählt, in die er ohnehin schon schaut. Das Modell lernt genau das.
 
 ## Wie stark er ist
 
-Gegen die Aufstellung aus `PacmanGame.py` (3× Pacman, 2× TRex), 40 Partien:
+40 Partien je Zeile auf der echten Engine, 15×15 mit Wänden, bis nur noch
+einer lebt (oder 400 Züge). Bei sechs gleich starken Spielern wären **16.7%**
+fair. „Allein übrig" ist die Siegbedingung von `PacmanGame`; „stärkster"
+zählt, wenn die Partie nicht aufgelöst wird.
 
-| | ThoresT |
+| Gegner | | allein übrig | stärkster | Stärke |
+|---|---|---|---|---|
+| **Aufstellung aus PacmanGame.py** | ThoresT | **52.5%** | **52.5%** | **109.5** |
+| (3× Pacman, 2× TRex) | Ernte-Bot | 0.0% | 12.5% | 52.0 |
+| | Serpentinen-Bot | 0.0% | 17.5% | 36.0 |
+| **5× Zufallsbot** | ThoresT | **72.5%** | **72.5%** | **139.8** |
+| | Ernte-Bot | 5.0% | 20.0% | 59.2 |
+| **5× TRex** | ThoresT | **35.0%** | **60.0%** | **114.5** |
+| | Ernte-Bot | 2.5% | 27.5% | 56.4 |
+| **5× Ernte-Bot** | ThoresT | **15.0%** | **62.5%** | **89.7** |
+| | Ernte-Bot | 0.0% | 10.0% | 27.5 |
+| **gemischt stark** | ThoresT | **22.5%** | **65.0%** | **105.2** |
+| | Ernte-Bot | 2.5% | 32.5% | 46.9 |
+
+Bester in allen fünf Szenarien, auf beiden Kriterien.
+
+Rechenzeit: rund 7 ms pro Zug.
+
+### Die Gewichte wurden für diese Engine neu gesucht
+
+Die vorherige Version war für die alte Engine getunt (100 Züge, keine Wände,
+feste Reihenfolge). Auf der neuen ist der Unterschied groß — gemessen über
+288 Partien auf zwei Gegnermengen, die die Optimierung nicht zur Auswahl
+benutzt hat:
+
+| Gewichte | allein übrig |
 |---|---|
-| allein übrig | 65% |
-| stärkster am Ende | 70% |
-| mittlere Stärke | 131.7 (bester Gegner 76.0) |
+| alte (für 100-Zug-Spiel) | 3.5% |
+| **neue** | **29.9%** |
 
-Bei sechs gleich starken Spielern wären 17% fair.
++26.4 Punkte, z = 6.0.
 
-Rechenzeit: rund 4 ms pro Zug.
+Bemerkenswert: die neuen Gewichte sind im Schnitt *schwächer* (125 statt 134)
+und seltener der Stärkste (68% statt 71%) — sie tauschen genau das gegen
+Überleben ein. Weil das Spiel endet, sobald einer übrig ist, ist das der
+richtige Tausch. Nach dem alten Kriterium optimiert hätte man einen Bot
+behalten, der gut erntet und dann stirbt.

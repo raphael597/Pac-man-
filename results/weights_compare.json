@@ -1,0 +1,32 @@
+{
+  "v1 (alte Engine)|holdout": {
+    "allein": 0.013888888888888888,
+    "staerkster": 0.75,
+    "games": 72.0
+  },
+  "v1 (alte Engine)|train": {
+    "allein": 0.05555555555555555,
+    "staerkster": 0.5972222222222222,
+    "games": 72.0
+  },
+  "v1 (alte Engine)|validation": {
+    "allein": 0.18055555555555555,
+    "staerkster": 0.5277777777777778,
+    "games": 72.0
+  },
+  "v2 (neue Engine)|holdout": {
+    "allein": 0.3194444444444444,
+    "staerkster": 0.8055555555555556,
+    "games": 72.0
+  },
+  "v2 (neue Engine)|train": {
+    "allein": 0.2777777777777778,
+    "staerkster": 0.625,
+    "games": 72.0
+  },
+  "v2 (neue Engine)|validation": {
+    "allein": 0.5277777777777778,
+    "staerkster": 0.6666666666666666,
+    "games": 72.0
+  }
+}
