@@ -119,45 +119,47 @@ wählt, in die er ohnehin schon schaut. Das Modell lernt genau das.
 
 ## Wie stark er ist
 
-40 Partien je Zeile auf der echten Engine, 15×15 mit Wänden, bis nur noch
-einer lebt (oder 400 Züge). Bei sechs gleich starken Spielern wären **16.7%**
-fair. „Allein übrig" ist die Siegbedingung von `PacmanGame`; „stärkster"
-zählt, wenn die Partie nicht aufgelöst wird.
+450 Partien auf der echten Engine, drei verschiedene Gegnermischungen:
 
-| Gegner | | allein übrig | stärkster | Stärke |
-|---|---|---|---|---|
-| **Aufstellung aus PacmanGame.py** | ThoresT | **52.5%** | **52.5%** | **109.5** |
-| (3× Pacman, 2× TRex) | Ernte-Bot | 0.0% | 12.5% | 52.0 |
-| | Serpentinen-Bot | 0.0% | 17.5% | 36.0 |
-| **5× Zufallsbot** | ThoresT | **72.5%** | **72.5%** | **139.8** |
-| | Ernte-Bot | 5.0% | 20.0% | 59.2 |
-| **5× TRex** | ThoresT | **35.0%** | **60.0%** | **114.5** |
-| | Ernte-Bot | 2.5% | 27.5% | 56.4 |
-| **5× Ernte-Bot** | ThoresT | **15.0%** | **62.5%** | **89.7** |
-| | Ernte-Bot | 0.0% | 10.0% | 27.5 |
-| **gemischt stark** | ThoresT | **22.5%** | **65.0%** | **105.2** |
-| | Ernte-Bot | 2.5% | 32.5% | 46.9 |
+| Gegnermischung | allein übrig | stärkster am Ende | Stärke |
+|---|---|---|---|
+| train | 33.3% | 68.0% | 107.7 (bester Gegner 63.1) |
+| validation | 54.7% | 66.7% | 126.8 (72.8) |
+| holdout *(nie fürs Tuning benutzt)* | 24.0% | 66.7% | 104.1 (65.0) |
 
-Bester in allen fünf Szenarien, auf beiden Kriterien.
+Bei sechs gleich starken Spielern wären 16.7% fair.
 
-Rechenzeit: rund 7 ms pro Zug.
+Rechenzeit: rund 8 ms pro Zug. Die Engine hat kein Zeitlimit.
 
-### Die Gewichte wurden für diese Engine neu gesucht
+### Er ist nicht unschlagbar
 
-Die vorherige Version war für die alte Engine getunt (100 Züge, keine Wände,
-feste Reihenfolge). Auf der neuen ist der Unterschied groß — gemessen über
-288 Partien auf zwei Gegnermengen, die die Optimierung nicht zur Auswahl
-benutzt hat:
+Das ist wichtig genug, um es hinzuschreiben. Auf der Holdout-Menge steht er in
+**24% der Partien allein am Ende** — also verliert er drei von vier. Er ist in
+zwei Dritteln der Partien der Stärkste, aber "stärkster" und "überlebt" sind
+nicht dasselbe.
 
-| Gewichte | allein übrig |
+Und es gibt Aufstellungen, gegen die ein viel dümmerer Bot besser abschneidet:
+gegen fünf reine Jäger schlägt ihn ein Bot, der nichts tut außer stur
+Serpentinen zu laufen (50% gegen 27.5%). Mehr Vorsicht würde das beheben und
+überall sonst ein Sechstel der Ernte kosten — der Optimierer hat diese
+Abwägung durchsucht und sich für die Ernte entschieden.
+
+Der Grund liegt im Spiel selbst: **jeder Kampf ist ein Würfelwurf.** Selbst der
+beste Angriff — von hinten, bei doppelter Stärke — geht in einem von zwanzig
+Fällen schief, und ein verlorener Kampf beendet die Partie. Bei sechs Spielern
+kann kein Bot zuverlässig gewinnen. Was Vorhersage und Planung leisten, ist
+die Chancen zu verschieben, nicht die Würfel zu kontrollieren.
+
+### Was die Gewichte gebracht haben
+
+Neu getunt für diese Engine-Version, gemessen gegen die vorherigen Werte:
+
+| | allein übrig |
 |---|---|
-| alte (für 100-Zug-Spiel) | 3.5% |
-| **neue** | **29.9%** |
+| alte Gewichte | 12.7% |
+| neu getunt | **28.7%** |
 
-+26.4 Punkte, z = 6.0.
-
-Bemerkenswert: die neuen Gewichte sind im Schnitt *schwächer* (125 statt 134)
-und seltener der Stärkste (68% statt 71%) — sie tauschen genau das gegen
-Überleben ein. Weil das Spiel endet, sobald einer übrig ist, ist das der
-richtige Tausch. Nach dem alten Kriterium optimiert hätte man einen Bot
-behalten, der gut erntet und dann stirbt.
++16.0 Punkte über 300 unabhängige Partien, z = +3.42 — das ist deutlich mehr
+als Rauschen. Interessant dabei: "stärkster am Ende" ging leicht *zurück*
+(78.7% → 68.0% auf der train-Menge). Der Optimierer hat Stärke gegen Überleben
+getauscht, und das ist richtig, weil das Spiel endet, wenn nur noch einer lebt.

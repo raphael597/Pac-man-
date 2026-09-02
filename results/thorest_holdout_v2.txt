@@ -1,0 +1,17 @@
+450 Partien in 166s
+
+Gewichte  Gegner        allein          95% KI  staerkster   rang  staerke  bester   lebt
+-----------------------------------------------------------------------------------------
+v1_alt    holdout        8.0% [ 1.9%,14.1%]      69.3%   0.59    102.3    67.2   71%
+v1_alt    train         17.3% [ 8.8%,25.9%]      78.7%   0.39    114.9    67.3   79%
+v1_alt    validation    33.3% [22.7%,44.0%]      62.7%   0.83    130.3    84.3   63%
+v2_neu    holdout       24.0% [14.3%,33.7%]      66.7%   0.87    104.1    65.0   67%
+v2_neu    train         33.3% [22.7%,44.0%]      68.0%   0.73    107.7    63.1   71%
+v2_neu    validation    54.7% [43.4%,65.9%]      66.7%   0.72    126.8    72.8   67%
+
+z-Test (v2 - v1), 'allein uebrig':
+  train        +16.0 Pkt  staerkster  -10.7 Pkt  z=+2.25  -> v2 SIGNIFIKANT besser
+  validation   +21.3 Pkt  staerkster   +4.0 Pkt  z=+2.63  -> v2 SIGNIFIKANT besser  (Auswahlmenge)
+  holdout      +16.0 Pkt  staerkster   -2.7 Pkt  z=+2.67  -> v2 SIGNIFIKANT besser
+
+  gepoolt (train+holdout, je 150 Partien): 12.7% -> 28.7%  (+16.0 Pkt)  z=+3.42  -> SIGNIFIKANT
