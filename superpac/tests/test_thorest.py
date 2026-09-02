@@ -176,6 +176,32 @@ class TestWeights(unittest.TestCase):
         known = set(Weights.names())
         self.assertEqual((set(BOUNDS) | set(INT_BOUNDS)) - known, set())
 
+    def test_float_counts_are_coerced_to_int(self):
+        """A tuning run writes its JSON from a float vector, so ``beam_width``
+        and ``depth`` can arrive as ``27.0``.  They are handed to ``range()``,
+        where a float raises - and the fault handler turns that into a silent
+        fallback move every single turn.  The bot keeps playing, badly, and
+        nothing in the output says so.  Coercion has to happen in the class."""
+        w = Weights(beam_width=27.0, depth=14.0)
+        self.assertIsInstance(w.beam_width, int)
+        self.assertIsInstance(w.depth, int)
+        self.assertEqual(range(w.depth), range(14))
+
+    def test_the_shipped_weights_file_drives_a_working_brain(self):
+        """Guards the file we actually ship with, not just the defaults."""
+        import json
+        import os
+        path = os.path.join(os.path.dirname(__file__),
+                            "..", "..", "results", "thorest_weights.json")
+        if not os.path.exists(path):
+            self.skipTest("no tuned weights checked in")
+        with open(path) as handle:
+            weights = Weights(**json.load(handle)["weights"])
+        result = play(_thorest(weights=weights), seed=4,
+                      walls=teacher_walls(), max_turns=120)
+        self.assertEqual(result.faults, 0,
+                         "the shipped weights put the bot on the fallback route")
+
 
 if __name__ == "__main__":
     unittest.main()

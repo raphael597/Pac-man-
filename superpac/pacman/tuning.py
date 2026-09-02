@@ -30,6 +30,7 @@ BOUNDS: Dict[str, Tuple[float, float]] = {
     "hunt": (0.0, 2.5),
     "hunt_decay": (0.70, 0.96),
     "exposure": (0.0, 20.0),
+    "facing_discipline": (0.0, 40.0),
     "survival_bonus": (0.0, 30.0),
     "discount": (0.85, 0.999),
     "attack_margin": (0.4, 3.0),

@@ -66,6 +66,17 @@ class Weights:
     bot with no reason to move at all once the cabbage ran out."""
     exposure: float = 6.0
     """Penalty for standing where a rival can profitably hit us."""
+    facing_discipline: float = 0.0
+    """Penalty for ending a turn with our back to a nearby threat.
+
+    ``danger`` only prices rivals *already* lined up on us, because only those
+    can strike next turn. But a rival two steps away needs one turn to aim and
+    one to move - and our facing when it arrives is what sets its odds. Turned
+    the wrong way that is 91% for it; turned to meet it, 50%.
+
+    Off by default: it is a hypothesis, and the A/B at 900 matches a side is
+    what decides whether it ships.
+    """
     survival_bonus: float = 8.0
     """Flat bonus for still being alive at the horizon.
 
@@ -80,6 +91,18 @@ class Weights:
     """Scales the ``F < a/f`` attack threshold. Above 1 is bolder."""
     harvest_rate: float = 0.85
     """Cabbage per turn we expect to collect while alive - feeds ``F``."""
+
+    def __post_init__(self) -> None:
+        # ``beam_width`` and ``depth`` end up in ``range()``.  Weights reach us
+        # from three directions - defaults, ``from_vector`` and a JSON dict
+        # written by a tuning run - and only ``from_vector`` used to coerce.
+        # A float that slipped through the other two raised inside ``_search``
+        # every single turn, which the fault handler swallowed into the
+        # fallback route, so the bot kept playing and nothing looked broken.
+        # Coercing here closes all three doors at once.
+        for f in fields(self):
+            if f.type == "int" and not isinstance(getattr(self, f.name), int):
+                object.__setattr__(self, f.name, int(round(getattr(self, f.name))))
 
     def as_vector(self) -> List[float]:
         return [float(getattr(self, f.name)) for f in fields(self)]
@@ -121,7 +144,7 @@ class TurnFields:
     """
 
     __slots__ = ("size", "density", "pressure", "hunt", "_run", "snapshot",
-                 "run_value")
+                 "run_value", "back_turned")
 
     def __init__(self, snapshot: Snapshot, weights: "Weights",
                  move_probability: Dict[str, float],
@@ -215,6 +238,36 @@ class TurnFields:
                         if value > row[cell]:
                             row[cell] = value
         self.hunt = hunt
+
+        # --- what our facing costs us, per (facing, cell) --------------
+        # Priced only when the weight is on, since it is four more passes
+        # over the board and buys nothing when switched off.
+        if weights.facing_discipline > 0:
+            back = [[0.0] * n for _ in range(4)]
+            for rival in snapshot.rivals:
+                reach = 3
+                for dx in range(-reach, reach + 1):
+                    for dy in range(abs(dx) - reach, reach + 1 - abs(dx)):
+                        d = abs(dx) + abs(dy)
+                        if d == 0 or d > reach:
+                            continue
+                        x = (rival.x + dx) % size
+                        y = (rival.y + dy) % size
+                        cell = y * size + x
+                        # How much easier we make it for this rival by
+                        # facing each way, relative to meeting it head on.
+                        for facing in range(4):
+                            p = win_probability(rival.strength, strength,
+                                                rival.direction, facing)
+                            best = win_probability(rival.strength, strength,
+                                                   rival.direction,
+                                                   OPPOSITE[rival.direction])
+                            excess = max(0.0, p - best) * (0.55 ** (d - 1))
+                            if excess > back[facing][cell]:
+                                back[facing][cell] = excess
+            self.back_turned = back
+        else:
+            self.back_turned = None
 
         # --- run-ahead, memoised lazily per (facing, cell) -------------
         self._run: Dict[int, int] = {}
@@ -503,6 +556,8 @@ class Brain:
         positional += w.density * fields.density[cell]
         positional += w.hunt * fields.hunt[facing][cell]
         positional -= w.exposure * fields.pressure[cell]
+        if fields.back_turned is not None:
+            positional -= w.facing_discipline * fields.back_turned[facing][cell]
         positional += w.survival_bonus
 
         return banked + alive * (strength + horizon * positional)
