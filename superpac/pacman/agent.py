@@ -92,6 +92,22 @@ class Weights:
     """Scales the ``F < a/f`` attack threshold. Above 1 is bolder."""
     harvest_rate: float = 0.85
     """Cabbage per turn we expect to collect while alive - feeds ``F``."""
+    phase_exposure: float = 0.0
+    """Wie sich die Vorsicht ueber die Partie veraendert.
+
+    Jagd und Angriff sind bereits phasenabhaengig, und zwar stetig: beide
+    haengen an ``future_value``, das mit dem Kohl auf dem Brett faellt.
+    Die *Vorsicht* dagegen war ueber die ganze Partie konstant, obwohl die
+    Lage sich vollstaendig aendert - am Anfang stehen sechs gleich schwache
+    Spieler auf einem vollen Brett, am Ende zwei ungleiche auf einem leeren.
+
+    Wirkt als ``exposure * (1 + phase_exposure * verbraucht)``, wobei
+    ``verbraucht`` von 0 auf 1 laeuft, waehrend das Brett leergefressen
+    wird. Positiv heisst spaeter vorsichtiger, negativ spaeter mutiger.
+
+    0.0 als Vorgabe, also unveraendert. Welche Richtung richtig ist, ist
+    eine offene Frage - und genau deshalb ein A/B und keine Meinung.
+    """
     facing_trust: float = 1.0
     """How long we believe a rival keeps looking the way it looks now.
 
@@ -171,7 +187,7 @@ class TurnFields:
 
     def __init__(self, snapshot: Snapshot, weights: "Weights",
                  move_probability: Dict[str, float],
-                 future: float = 0.0) -> None:
+                 future: float = 0.0, verbraucht: float = 0.0) -> None:
         size = snapshot.size
         self.size = size
         self.snapshot = snapshot
@@ -203,8 +219,11 @@ class TurnFields:
         rival_distance = [distance_field(size, blocked, r.x, r.y)
                           for r in snapshot.rivals]
         pressure = [0.0] * n
+        # Der Phasenfaktor sitzt hier im Feld, nicht im Evaluator: so
+        # kostet er einmal pro Zug statt einmal pro Suchknoten.
+        phase = 1.0 + weights.phase_exposure * verbraucht
         for rival, dist in zip(snapshot.rivals, rival_distance):
-            weight = min(3.0, rival.strength / 4.0 + 0.5)
+            weight = min(3.0, rival.strength / 4.0 + 0.5) * phase
             for cell in range(n):
                 d = dist[cell]
                 if d <= 3:
@@ -379,6 +398,7 @@ class Brain:
         self.log: List[str] = []
         self._snapshot: Optional[Snapshot] = None
         self._move_probability: Dict[str, float] = {}
+        self._max_cabbage = 0
 
     # ------------------------------------------------------------------
     def decide(self, me) -> int:
@@ -492,12 +512,27 @@ class Brain:
             return available
         return min(remaining * self.weights.harvest_rate, available)
 
+    def _verbraucht(self, snapshot: Snapshot) -> float:
+        """Wie viel des Bretts schon abgeerntet ist, von 0 bis 1.
+
+        Der Ausgangsbestand wird nicht gerechnet, sondern beobachtet: das
+        erste, was wir sehen, ist das vollste Brett, das wir je sehen
+        werden. Das haelt auch, wenn der Lehrer die Feldgroesse oder die
+        Waende aendert - eine gerechnete Formel taete das nicht.
+        """
+        if snapshot.n_cabbage > self._max_cabbage:
+            self._max_cabbage = snapshot.n_cabbage
+        if self._max_cabbage <= 0:
+            return 1.0
+        return 1.0 - snapshot.n_cabbage / self._max_cabbage
+
     def _search(self, snapshot: Snapshot) -> int:
         w = self.weights
         size = snapshot.size
         future = self.future_value(snapshot)
 
-        fields = TurnFields(snapshot, w, self._move_probability, future)
+        fields = TurnFields(snapshot, w, self._move_probability, future,
+                            self._verbraucht(snapshot))
 
         # node: (score, x, y, facing, strength, alive, banked, eaten, first)
         start = (0.0, snapshot.x, snapshot.y, snapshot.direction,

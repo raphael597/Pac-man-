@@ -13,6 +13,7 @@
     10.0,
     1.056967676909363,
     0.8457841890125624,
+    0.0,
     1.0,
     1.0
   ],
@@ -30,6 +31,7 @@
     "depth",
     "attack_margin",
     "harvest_rate",
+    "phase_exposure",
     "facing_trust",
     "wall_aware"
   ],
@@ -47,6 +49,7 @@
     "depth": 10,
     "attack_margin": 1.056967676909363,
     "harvest_rate": 0.8457841890125624,
+    "phase_exposure": 0.0,
     "facing_trust": 1.0,
     "wall_aware": 1
   },
