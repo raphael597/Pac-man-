@@ -221,7 +221,9 @@ class TurnFields:
         pressure = [0.0] * n
         # Der Phasenfaktor sitzt hier im Feld, nicht im Evaluator: so
         # kostet er einmal pro Zug statt einmal pro Suchknoten.
-        phase = 1.0 + weights.phase_exposure * verbraucht
+        # Nicht unter null: ein negativer Druck waere kein "mutiger", sondern
+        # ein selbstmoerderischer Bot - Gefahr wuerde ihn dann anziehen.
+        phase = max(0.0, 1.0 + weights.phase_exposure * verbraucht)
         for rival, dist in zip(snapshot.rivals, rival_distance):
             weight = min(3.0, rival.strength / 4.0 + 0.5) * phase
             for cell in range(n):
