@@ -147,13 +147,39 @@ def mcnemar(only_a: int, only_b: int) -> float:
     Nur die Bretter zaehlen, auf denen genau eine Variante gewonnen hat;
     die uebrigen tragen keine Information ueber den Unterschied.  Unter der
     Nullhypothese ist jedes dieser Bretter ein fairer Muenzwurf.
+
+    Gerechnet wird im Logarithmus.  Die direkte Formel
+    ``sum(comb(n, i)) / 2**n`` sieht harmlos aus, aber ``2.0 ** n`` sprengt
+    ab n = 1024 den Float-Bereich - und genau dort landen wir, wenn der
+    Benchmark endlich gross genug ist, um etwas zu sehen.  Zaehler und
+    Nenner sind exakte Ganzzahlen; ``math.log`` nimmt die in voller Groesse,
+    also faellt die Differenz der Logarithmen sauber heraus.
     """
     n = only_a + only_b
     if n == 0:
         return 1.0
     k = min(only_a, only_b)
-    tail = sum(math.comb(n, i) for i in range(k + 1)) / (2.0 ** n)
-    return min(1.0, 2.0 * tail)
+    numerator = sum(math.comb(n, i) for i in range(k + 1))
+    log_p = math.log(numerator) - n * math.log(2.0)
+    return min(1.0, 2.0 * math.exp(log_p)) if log_p > -700 else 0.0
+
+
+def paired_difference(only_a: int, only_b: int, pairs: int):
+    """Unterschied in Prozentpunkten samt 95%-Intervall.
+
+    Der p-Wert sagt nur, *ob* ein Unterschied da ist.  Bei 3600 gepaarten
+    Brettern wird auch ein halber Prozentpunkt signifikant, und ein halber
+    Prozentpunkt ist uns egal.  Deshalb immer die Groesse dazu.
+    """
+    if pairs == 0:
+        return 0.0, 0.0, 0.0
+    diff = (only_a - only_b) / pairs
+    # Varianz der gepaarten Differenz: die uebereinstimmenden Bretter
+    # tragen 0 bei, die abweichenden +1 bzw. -1.
+    discordant = only_a + only_b
+    var = (discordant - (only_a - only_b) ** 2 / pairs) / (pairs * pairs)
+    half = 1.959963985 * math.sqrt(max(0.0, var))
+    return diff, diff - half, diff + half
 
 
 # ----------------------------------------------------------------------
@@ -169,7 +195,15 @@ def main() -> int:
     ap.add_argument("--workers", type=int, default=os.cpu_count() or 1)
     ap.add_argument("--weights", default=DEFAULT_WEIGHTS_FILE)
     ap.add_argument("--out", default="results/grossbenchmark.json")
+    ap.add_argument("--report-only", action="store_true",
+                    help="nur auswerten, nicht neu spielen")
     args = ap.parse_args()
+
+    if args.report_only:
+        with open(args.out) as handle:
+            saved = json.load(handle)
+        report(saved["rows"], saved["mixes"], list(saved["variants"]))
+        return 0
 
     mixes = [m.strip() for m in args.mixes.split(",") if m.strip()]
     unknown = set(mixes) - set(MIXES)
@@ -279,10 +313,17 @@ def report(rows: List[dict], mixes: Sequence[str],
                 else:
                     b += 1
             p = mcnemar(a, b)
-            diff = (a - b)
-            verdict = "signifikant" if p < 0.05 else "nicht unterscheidbar"
-            print(f"  {v:<16s} {label:<14s} {v} gewinnt {a:4d} Bretter, "
-                  f"basis {b:4d}  (netto {diff:+4d})  p={p:.3f}  {verdict}")
+            pairs = sum(1 for r in rows if r["variant"] == v
+                        and (r["mix"], r["seed"]) in base)
+            d, lo, hi = paired_difference(a, b, pairs)
+            if p >= 0.05:
+                verdict = "kein Unterschied"
+            elif d > 0:
+                verdict = "BESSER"
+            else:
+                verdict = "SCHLECHTER"
+            print(f"  {v:<16s} {label:<14s} {a:4d} : {b:4d} Bretter  "
+                  f"{d:+6.1%} [{lo:+5.1%},{hi:+5.1%}]  p={p:.2g}  {verdict}")
 
 
 if __name__ == "__main__":
