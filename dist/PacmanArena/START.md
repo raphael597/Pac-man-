@@ -20,15 +20,21 @@ Legt eure `.py`-Dateien in **`arena/bots/`**. Jede Klasse darin, die von
 ## Zuschauen
 
 ```bash
-# live im Fenster (Leertaste = Pause, + und - = Tempo, Esc = zu)
-python arena/freundschaftsarena.py --grafisch --fueller 4
-
-# als HTML-Datei, zum Zurückspulen und Verschicken
-python arena/freundschaftsarena.py --partien 1 --replay partie.html
+python arena/freundschaftsarena.py --partien 20 --fueller 4 --grafisch
 ```
 
-Das Fenster braucht `pygame` — dasselbe Paket wie `PacmanGame.py`. Fehlt
-es: `pip install pygame`. Das HTML-Replay braucht nichts.
+Das schreibt `arena_turnier.html` und öffnet es im Browser: oben die
+Tabelle über alle Partien, darunter eine davon zum Abspielen — mit
+Schieberegler, Stärkeverlauf und der Diagnose je Bot. Braucht **kein**
+Zusatzpaket. `--replay-saat 7` wählt aus, welche Partie unten gezeigt wird.
+
+Wer lieber live zuschaut, wie bei `PacmanGame.py`:
+
+```bash
+python arena/freundschaftsarena.py --fenster --fueller 4
+```
+
+Das braucht `pygame` (Leertaste = Pause, `+`/`-` = Tempo, Esc = zu).
 
 ## Die vier Befehle, die ihr wirklich braucht
 

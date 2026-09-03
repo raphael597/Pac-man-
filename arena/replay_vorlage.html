@@ -98,6 +98,23 @@ select{font:400 13px "IBM Plex Mono",monospace; padding:8px;
          font-variant-numeric:tabular-nums; color:var(--ink-2);
          min-width:96px}
 
+.turnier{margin-top:26px; background:var(--surface);
+         border:1px solid var(--line); border-radius:6px; padding:16px;
+         box-shadow:var(--schatten)}
+.turnier h2{display:flex; align-items:baseline; gap:12px}
+.tabellenrolle{overflow-x:auto; margin-top:12px}
+table{border-collapse:collapse; width:100%; min-width:560px}
+th,td{padding:8px 10px; text-align:right; white-space:nowrap;
+      border-top:1px solid var(--line)}
+th{font:600 11px "IBM Plex Mono",monospace; letter-spacing:.1em;
+   text-transform:uppercase; color:var(--muted); border-top:0}
+td{font:400 14px "IBM Plex Mono",monospace; font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+td.name{font-family:"Source Sans 3",sans-serif; font-weight:600;
+        display:flex; align-items:center; gap:8px}
+td.name i{width:9px; height:9px; border-radius:2px; display:inline-block}
+tr.fuehrend td{background:color-mix(in srgb, var(--p0) 8%, transparent)}
+td .warn{color:var(--warn)}
 .tafel{background:var(--surface); border:1px solid var(--line);
        border-radius:6px; box-shadow:var(--schatten); overflow:hidden}
 .tafel h2{padding:14px 16px 10px}
@@ -154,6 +171,12 @@ canvas#verlauf{width:100%; height:210px; display:block}
     </div>
   </header>
 
+  <section class="turnier" id="turnierkasten" hidden>
+    <h2>Turnier <span class="marke" id="turnierumfang"></span></h2>
+    <div class="tabellenrolle"><table id="turniertabelle"></table></div>
+  </section>
+
+  <h2 style="margin-top:30px">Eine Partie im Einzelnen</h2>
   <div class="buehne">
     <div>
       <div class="brettkasten">
@@ -193,7 +216,9 @@ canvas#verlauf{width:100%; height:210px; display:block}
   <div class="karten" id="karten"></div>
 
   <p class="fuss">
-    Erzeugt mit <code>python arena/freundschaftsarena.py --replay datei.html</code>.
+    Erzeugt mit <code>python arena/freundschaftsarena.py --grafisch</code>.
+    Die Tabelle oben fasst alle Partien zusammen, das Brett darunter zeigt
+    eine davon Zug für Zug — <code>--replay-saat 7</code> wählt aus, welche.
     Die Arena fasst die Bots nicht an — sie liest vor und nach jedem Zug
     das Brett ab. <b>Ohne Wirkung</b> heißt: weder Position noch Blick haben
     sich geändert, der Zug war geschenkt. Drehen kostet in dieser Engine
@@ -333,6 +358,32 @@ function zeichneVerlauf() {
   vctx.fillText("Zug " + zug, Math.min(x + 5, B - 60), 14);
 }
 
+function turnier() {
+  const t = DATEN.turnier;
+  if (!t || !t.zeilen || !t.zeilen.length) return;
+  document.getElementById("turnierkasten").hidden = false;
+  document.getElementById("turnierumfang").textContent =
+    `${t.partien} Partien je Spieler · fair wären ${(100 / t.zeilen.length).toFixed(1)}%`;
+  const kopf = ["Spieler", "stärkster", "allein übrig", "lebt", "Stärke",
+                "ohne Wirkung", "ms/Zug"];
+  const reihen = t.zeilen.map(z => {
+    const i = namen.indexOf(z.name);
+    const leer = z.leerlauf;
+    return `<tr${z === t.zeilen[0] ? ' class="fuehrend"' : ""}>
+      <td class="name"><i style="background:${
+        i >= 0 ? spielerFarbe(i) : "var(--muted)"}"></i>${z.name}</td>
+      <td>${(100 * z.staerkster).toFixed(1)}%</td>
+      <td>${(100 * z.allein).toFixed(1)}%</td>
+      <td>${(100 * z.lebt).toFixed(0)}%</td>
+      <td>${z.staerke.toFixed(1)}</td>
+      <td${leer > 0.15 ? ' class="warn"' : ""}>${(100 * leer).toFixed(0)}%</td>
+      <td>${z.ms.toFixed(2)}</td></tr>`;
+  });
+  document.getElementById("turniertabelle").innerHTML =
+    "<thead><tr>" + kopf.map(k => `<th>${k}</th>`).join("") +
+    "</tr></thead><tbody>" + reihen.join("") + "</tbody>";
+}
+
 function karten() {
   const a = DATEN.auswertung;
   document.getElementById("karten").innerHTML = namen.map((n, i) => {
@@ -398,6 +449,7 @@ window.addEventListener("keydown", e => {
 });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", zeichne);
 
+turnier();
 karten();
 zeichne();
 </script>

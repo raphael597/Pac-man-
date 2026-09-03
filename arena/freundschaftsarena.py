@@ -641,6 +641,18 @@ def zeige_partie(aufstellung: Sequence[Tuple[type, str]], saat: int,
     return protokolle
 
 
+def turnier_fuer_viewer(bilanzen: Dict[str, "Bilanz"], partien: int) -> dict:
+    """Die Bilanz in die schlanke Form bringen, die der Viewer liest."""
+    zeilen = sorted(
+        ({"name": b.name, "staerkster": b.staerkster_quote,
+          "allein": b.quote, "lebt": b.ueberlebt / max(1, b.partien),
+          "staerke": b.staerke / max(1, b.partien),
+          "leerlauf": b.leerlauf, "ms": b.ms / max(1, b.zuege)}
+         for b in bilanzen.values()),
+        key=lambda z: (-z["staerkster"], -z["allein"]))
+    return {"partien": partien, "zeilen": zeilen}
+
+
 def schreibe_replay(pfad: str, daten: dict) -> None:
     """Eine Partie als HTML zum Anschauen - eine Datei, ohne Zubehoer.
 
@@ -683,7 +695,9 @@ def main() -> int:
                          "einer KI vorlegt")
     ap.add_argument("--nur-tabelle", action="store_true")
     ap.add_argument("--grafisch", action="store_true",
-                    help="eine Partie im Fenster zuschauen (braucht pygame)")
+                    help="Turnier plus Replay als HTML, oeffnet den Browser")
+    ap.add_argument("--fenster", action="store_true",
+                    help="live zuschauen im pygame-Fenster")
     ap.add_argument("--fps", type=int, default=12,
                     help="Zuege je Sekunde in der grafischen Anzeige")
     args = ap.parse_args()
@@ -721,7 +735,7 @@ def main() -> int:
           f"{' ohne Waende' if args.ohne_waende else ' mit Waenden'}, "
           f"Zuglimit {args.grenze}\n")
 
-    if args.grafisch:
+    if args.fenster:
         print("Leertaste haelt an, + und - aendern das Tempo, Esc beendet.\n")
         protokolle = zeige_partie(aufstellung, args.saat, args.feldgroesse,
                                   waende, args.grenze, args.fps)
@@ -748,7 +762,11 @@ def main() -> int:
                        "spieler": [n for _, n in aufstellung],
                        "rohdaten": rohdaten}, datei, indent=1)
         print(f"\nRohdaten (jeder Zug jedes Spielers): {args.bericht}")
-    if args.replay or args.protokoll or args.warum:
+    ziel_html = args.replay
+    if args.grafisch and not ziel_html:
+        ziel_html = os.path.join(os.getcwd(), "arena_turnier.html")
+
+    if ziel_html or args.protokoll or args.warum:
         from arena.protokoll import Mitschrift
 
         saat = args.replay_saat if args.replay_saat is not None else args.saat
@@ -756,13 +774,25 @@ def main() -> int:
         mit = Mitschrift() if (args.protokoll or args.warum) else None
         protokolle, zuege = spiele(
             aufstellung, saat, args.feldgroesse, waende, args.grenze,
-            aufzeichnung=daten if args.replay else None, mitschrift=mit)
-        if args.replay:
+            aufzeichnung=daten if ziel_html else None, mitschrift=mit)
+        if ziel_html:
+            # Die Turniertabelle mit in die Seite: eine Partie zeigt, *wie*
+            # gespielt wurde, viele zeigen, *wer* besser ist. Beides gehoert
+            # auf dieselbe Seite, sonst vergleicht man am Ende doch wieder
+            # zwei Bots anhand einer einzigen Partie.
+            daten["turnier"] = turnier_fuer_viewer(bilanzen, args.partien)
             daten["saat"] = saat
             daten["auswertung"] = {n: p.als_dict()
                                    for n, p in protokolle.items()}
-            schreibe_replay(args.replay, daten)
-            print(f"\nReplay ({zuege} Zuege, Saat {saat}): {args.replay}")
+            schreibe_replay(ziel_html, daten)
+            print(f"\nHTML ({args.partien} Partien plus Replay von Saat "
+                  f"{saat}, {zuege} Zuege): {ziel_html}")
+            if args.grafisch:
+                import webbrowser
+                if webbrowser.open("file://" + os.path.abspath(ziel_html)):
+                    print("Im Browser geoeffnet.")
+                else:
+                    print("Datei im Browser oeffnen.")
         if mit is not None:
             if args.protokoll:
                 mit.schreibe_jsonl(args.protokoll)
