@@ -57,6 +57,37 @@ eine andere „Stufe" zwischen 0 und 1, die steuert, wie oft er sich die
 längste Kohlbahn sucht statt einfach weiterzulaufen — so besteht das Feld
 nicht aus einer Meinung in fünffacher Ausfertigung.
 
+## Zuschauen
+
+Zwei Wege, und sie beantworten verschiedene Fragen.
+
+**Live im Fenster** — wie `PacmanGame.py`, aber mit eurer Aufstellung:
+
+```bash
+python arena/freundschaftsarena.py --grafisch --fueller 4
+```
+
+| Taste | |
+|---|---|
+| Leertaste | anhalten und weiter |
+| `+` / `-` | schneller, langsamer |
+| Esc | schließen |
+
+`--fps 4` startet gleich langsam, `--saat 7` zeigt eine bestimmte Partie.
+Braucht `pygame` — dasselbe Paket, das auch `PacmanGame.py` braucht. Fehlt
+es: `pip install pygame`.
+
+**Als HTML-Datei zum Zurückspulen** — braucht kein pygame, lässt sich
+verschicken, und man kann Zug für Zug vor und zurück:
+
+```bash
+python arena/freundschaftsarena.py --partien 1 --replay partie.html
+```
+
+Zum *Anschauen* ist das Fenster schöner. Zum *Verstehen, warum ein Bot
+verloren hat*, ist das Replay besser: da könnt ihr an die entscheidende
+Stelle zurückspulen, statt sie zu verpassen.
+
 ## Auf der Größe testen, die im Turnier kommt
 
 Wenn im Turnier rund fünfzehn Bots antreten, sagt eine Sechser-Runde wenig:

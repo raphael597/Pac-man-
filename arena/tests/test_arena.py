@@ -187,3 +187,100 @@ class TestProtokoll(unittest.TestCase):
             if not p.lebt:
                 self.assertIn(p.name, text)
                 self.assertIn(f"Tot in Zug {p.gestorben_in_zug}", text)
+
+
+class TestGrafisch(unittest.TestCase):
+    """Die Fensteransicht ohne Fenster pruefen.
+
+    pygame ist auf Testrechnern selten installiert, und ein Pfad, den
+    niemand ausfuehrt, ist ein Pfad, der irgendwann kaputt ist. Der Stub
+    ersetzt nur pygame und den Renderer - geprueft wird die Schleife
+    selbst: Ereignisse, Pause, Zugreihenfolge und Buchhaltung.
+    """
+
+    def _stub(self, bilder_bis_ende=200):
+        import types
+        stand = {"n": 0, "gezeichnet": 0}
+
+        def get():
+            stand["n"] += 1
+            if stand["n"] == 5:      # Leertaste: Pause an
+                return [types.SimpleNamespace(type=2, key=32)]
+            if stand["n"] == 8:      # Leertaste: Pause aus
+                return [types.SimpleNamespace(type=2, key=32)]
+            if stand["n"] > bilder_bis_ende:
+                return [types.SimpleNamespace(type=1)]
+            return []
+
+        pg = types.ModuleType("pygame")
+        pg.init = lambda: None
+        pg.quit = lambda: None
+        pg.event = types.SimpleNamespace(get=get)
+        pg.time = types.SimpleNamespace(
+            Clock=lambda: types.SimpleNamespace(tick=lambda f: None))
+        pg.display = types.SimpleNamespace(set_caption=lambda t: None)
+        pg.QUIT, pg.KEYDOWN, pg.K_ESCAPE, pg.K_SPACE = 1, 2, 27, 32
+        pg.K_PLUS, pg.K_EQUALS, pg.K_MINUS = 43, 61, 45
+
+        rend = types.ModuleType("PacmanRenderer")
+
+        class _R:
+            def __init__(self, field):
+                self.field = field
+
+            def draw_field(self):
+                stand["gezeichnet"] += 1
+
+        rend.Renderer = _R
+        return pg, rend, stand
+
+    def test_fensterlauf_zaehlt_richtig(self):
+        import sys
+        from arena.freundschaftsarena import WAENDE, zeige_partie
+
+        pg, rend, stand = self._stub()
+        alt = (sys.modules.get("pygame"), sys.modules.get("PacmanRenderer"))
+        sys.modules["pygame"], sys.modules["PacmanRenderer"] = pg, rend
+        try:
+            protokolle = zeige_partie(_feld(), saat=3, groesse=15,
+                                      waende=WAENDE, grenze=1500, fps=12)
+        finally:
+            for name, modul in zip(("pygame", "PacmanRenderer"), alt):
+                if modul is None:
+                    sys.modules.pop(name, None)
+                else:
+                    sys.modules[name] = modul
+
+        self.assertIsNotNone(protokolle)
+        self.assertGreater(stand["gezeichnet"], 0)
+        for p in protokolle.values():
+            self.assertEqual(p.fehler, 0, p.name)
+            self.assertEqual(
+                p.zuege,
+                p.gezogen + p.gedreht + p.blockiert + p.kaempfe_verloren,
+                f"{p.name}: die Buchhaltung des Fensterlaufs geht nicht auf")
+
+    def test_ohne_pygame_kommt_eine_hilfreiche_meldung(self):
+        import builtins
+        import sys
+        from arena.freundschaftsarena import WAENDE, zeige_partie
+
+        echter_import = builtins.__import__
+
+        def blockiert(name, *rest, **kw):
+            if name == "pygame":
+                raise ImportError("No module named 'pygame'")
+            return echter_import(name, *rest, **kw)
+
+        gemerkt = sys.modules.pop("pygame", None)
+        builtins.__import__ = blockiert
+        try:
+            ergebnis = zeige_partie(_feld(), saat=1, groesse=15,
+                                    waende=WAENDE, grenze=50, fps=12)
+        finally:
+            builtins.__import__ = echter_import
+            if gemerkt is not None:
+                sys.modules["pygame"] = gemerkt
+        self.assertIsNone(ergebnis,
+                          "ohne pygame darf nichts zurueckkommen, aber auch "
+                          "nichts fliegen - der Nutzer braucht einen Rat")

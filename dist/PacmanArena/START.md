@@ -17,6 +17,19 @@ Legt eure `.py`-Dateien in **`arena/bots/`**. Jede Klasse darin, die von
 * `beispiel_gerader_fresser.py` — die Kopiervorlage
 * `ClaudeEndboss.py` — der Bot aus dem anderen ZIP, als Maßstab
 
+## Zuschauen
+
+```bash
+# live im Fenster (Leertaste = Pause, + und - = Tempo, Esc = zu)
+python arena/freundschaftsarena.py --grafisch --fueller 4
+
+# als HTML-Datei, zum Zurückspulen und Verschicken
+python arena/freundschaftsarena.py --partien 1 --replay partie.html
+```
+
+Das Fenster braucht `pygame` — dasselbe Paket wie `PacmanGame.py`. Fehlt
+es: `pip install pygame`. Das HTML-Replay braucht nichts.
+
 ## Die vier Befehle, die ihr wirklich braucht
 
 ```bash

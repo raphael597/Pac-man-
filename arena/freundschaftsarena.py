@@ -532,6 +532,115 @@ Was die Zahlen bedeuten
                   83%, von vorne bei 50%.""")
 
 
+def zeige_partie(aufstellung: Sequence[Tuple[type, str]], saat: int,
+                 groesse: int, waende: Optional[list], grenze: int,
+                 fps: int) -> Optional[Dict[str, Protokoll]]:
+    """Eine Partie im Fenster, mit dem Renderer des Lehrers.
+
+    Derselbe Ablauf wie ``PacmanGame.py``, nur mit eurer Aufstellung statt
+    der festen. Mitgeschrieben wird trotzdem, sodass nach dem Schliessen
+    des Fensters dieselbe Auswertung dasteht wie beim Textlauf.
+    """
+    try:
+        import pygame
+        from PacmanRenderer import Renderer
+    except ImportError as fehler:
+        print(f"\nFuer die grafische Anzeige fehlt etwas: {fehler}")
+        print("  pygame installieren:  pip install pygame")
+        print("  oder ohne Fenster:    --replay partie.html")
+        return None
+
+    random.seed(saat)
+    if waende is None:
+        waende = WAENDE
+    brett = Pacman.Field(groesse, [[k, n] for k, n in aufstellung], waende)
+    protokolle = {p.name: Protokoll(p.name) for p in brett.pacmans}
+
+    pygame.init()
+    renderer = Renderer(brett)
+    uhr = pygame.time.Clock()
+    pygame.display.set_caption(
+        f"Freundschaftsarena - {len(aufstellung)} Spieler, Saat {saat}")
+
+    laeuft = True
+    zug = 0
+    pause = False
+    while laeuft:
+        for ereignis in pygame.event.get():
+            if ereignis.type == pygame.QUIT:
+                laeuft = False
+            elif ereignis.type == pygame.KEYDOWN:
+                if ereignis.key == pygame.K_ESCAPE:
+                    laeuft = False
+                elif ereignis.key == pygame.K_SPACE:
+                    pause = not pause      # Leertaste haelt an
+                elif ereignis.key == pygame.K_PLUS or ereignis.key == pygame.K_EQUALS:
+                    fps = min(240, fps * 2)
+                elif ereignis.key == pygame.K_MINUS:
+                    fps = max(1, fps // 2)
+
+        lebend = sum(1 for p in brett.pacmans if p.alive)
+        if lebend > 1 and not pause and zug < grenze:
+            for spieler in random.sample(brett.pacmans, len(brett.pacmans)):
+                if not spieler.alive:
+                    continue
+                protokoll = protokolle[spieler.name]
+                vor_pos = (spieler.position._x, spieler.position._y)
+                vor_ric = (spieler.direction._x, spieler.direction._y)
+                vor_kraft = spieler.strength
+                vor_lebend = {p.name for p in brett.pacmans if p.alive}
+                start = time.perf_counter()
+                try:
+                    spieler.TurnOrMoveOrStill()
+                except Exception:
+                    protokoll.fehler += 1
+                gedauert = (time.perf_counter() - start) * 1000.0
+                protokoll.ms += gedauert
+                protokoll.langsamster_ms = max(protokoll.langsamster_ms, gedauert)
+                protokoll.zuege += 1
+                nach_pos = (spieler.position._x, spieler.position._y)
+                nach_ric = (spieler.direction._x, spieler.direction._y)
+                zuwachs = spieler.strength - vor_kraft
+                if not spieler.alive:
+                    protokoll.kaempfe_verloren += 1
+                    protokoll.gestorben_in_zug = zug
+                    gegner = brett.field[Position(
+                        (vor_pos[0] + vor_ric[0]) % groesse,
+                        (vor_pos[1] + vor_ric[1]) % groesse)]
+                    if isinstance(gegner, PacmanBasis):
+                        protokoll.gestorben_gegen = gegner.name
+                        protokolle[gegner.name].verteidigt += 1
+                        protokolle[gegner.name].verteidigungsbeute += vor_kraft
+                elif nach_pos != vor_pos:
+                    protokoll.gezogen += 1
+                    gefallen = vor_lebend - {p.name for p in brett.pacmans
+                                             if p.alive}
+                    if gefallen:
+                        protokoll.kaempfe_gewonnen += 1
+                        protokoll.beute += zuwachs
+                        for name in gefallen:
+                            protokoll.getoetet.append(name)
+                            protokolle[name].gestorben_gegen = spieler.name
+                            protokolle[name].gestorben_in_zug = zug
+                    elif zuwachs > 0:
+                        protokoll.kohl += int(zuwachs)
+                elif nach_ric != vor_ric:
+                    protokoll.gedreht += 1
+                else:
+                    protokoll.blockiert += 1
+            zug += 1
+
+        renderer.draw_field()
+        uhr.tick(fps)
+
+    for p in brett.pacmans:
+        protokolle[p.name].endstaerke = float(p.strength)
+        protokolle[p.name].lebt = bool(p.alive)
+    pygame.quit()
+    print(f"\nFenster geschlossen nach {zug} Zuegen.")
+    return protokolle
+
+
 def schreibe_replay(pfad: str, daten: dict) -> None:
     """Eine Partie als HTML zum Anschauen - eine Datei, ohne Zubehoer.
 
@@ -573,6 +682,10 @@ def main() -> int:
                     help="kuratierter Bericht als Markdown - der Text, den man "
                          "einer KI vorlegt")
     ap.add_argument("--nur-tabelle", action="store_true")
+    ap.add_argument("--grafisch", action="store_true",
+                    help="eine Partie im Fenster zuschauen (braucht pygame)")
+    ap.add_argument("--fps", type=int, default=12,
+                    help="Zuege je Sekunde in der grafischen Anzeige")
     args = ap.parse_args()
 
     print(f"Bots aus {args.ordner}")
@@ -607,6 +720,20 @@ def main() -> int:
           f"{args.feldgroesse}x{args.feldgroesse}"
           f"{' ohne Waende' if args.ohne_waende else ' mit Waenden'}, "
           f"Zuglimit {args.grenze}\n")
+
+    if args.grafisch:
+        print("Leertaste haelt an, + und - aendern das Tempo, Esc beendet.\n")
+        protokolle = zeige_partie(aufstellung, args.saat, args.feldgroesse,
+                                  waende, args.grenze, args.fps)
+        if protokolle is None:
+            return 1
+        for name, p in sorted(protokolle.items(),
+                              key=lambda kv: -kv[1].endstaerke):
+            print(f"  {name:<18s} Staerke {p.endstaerke:6.0f}  "
+                  f"{'lebt' if p.lebt else 'gefressen von ' + str(p.gestorben_gegen)}"
+                  f"   {p.blockiert / max(1, p.zuege):3.0%} ohne Wirkung"
+                  + (f"   FEHLER {p.fehler}" if p.fehler else ""))
+        return 0
 
     begonnen = time.time()
     bilanzen, rohdaten = turnier(aufstellung, args.partien, args.saat,
