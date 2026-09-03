@@ -269,7 +269,11 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--weights", default="results/thorest_weights.json")
     ap.add_argument("--out", default="dist/ThoresT/ThoresT.py")
+    ap.add_argument("--name", default="ThoresT",
+                    help="wie die Klasse und der Spieler heissen sollen")
     args = ap.parse_args()
+    if not args.name.isidentifier():
+        ap.error(f"{args.name!r} ist kein gueltiger Klassenname")
 
     weights_path = os.path.join(ROOT, args.weights)
     if os.path.exists(weights_path):
@@ -299,6 +303,14 @@ def main() -> None:
                     .replace("{imports}", "\n".join(ordered)))
     footer = FOOTER.replace("{weights_dict}", json.dumps(weights_dict, indent=4))
     text = header + "\n\n".join(bodies) + footer
+
+    # Umbenennen erst hier, auf dem fertigen Text: der Name kommt in der
+    # Klassendefinition, im Kopfkommentar, im Selbsttest und in den
+    # Beispielen vor, und alle sollen zusammenpassen. "ThoresT" ist im
+    # uebrigen Quelltext kein Bezeichner, deshalb ist die Ersetzung
+    # eindeutig - was der ast.parse darunter auch belegt.
+    if args.name != "ThoresT":
+        text = text.replace("ThoresT", args.name)
 
     ast.parse(text)
 
