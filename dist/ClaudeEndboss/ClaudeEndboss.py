@@ -1581,7 +1581,7 @@ TUNED_WEIGHTS = {
     "depth": 14,
     "attack_margin": 0.9972464021346342,
     "harvest_rate": 0.8333751053180897,
-    "phase_exposure": 0.0,
+    "phase_exposure": -1.0,
     "facing_trust": 1.0,
     "wall_aware": 1
 }

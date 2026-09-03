@@ -51,6 +51,82 @@ Beide Behauptungen kamen aus Stichproben, deren Konfidenzintervall breiter
 war als der behauptete Unterschied. Das ist kein Ausrutscher gewesen, sondern
 der Normalfall bei 40 Partien — siehe unten.
 
+## Fünfzehn Spieler sind nicht sechs
+
+Alle Messungen dieses Projekts liefen lange mit **sechs** Spielern. Im
+Turnier sind rund fünfzehn zu erwarten, und das ist nicht dieselbe Aufgabe:
+
+```
+future_value = Kohl / (1 + Gegner)      steuert Angriff und Jagd
+   6 Spieler:  190 / 6  ≈ 32
+  15 Spieler:  190 / 15 ≈ 13
+```
+
+Der Bot wird bei 15 Spielern also von selbst viel früher aggressiv — seine
+*Vorsicht* (`exposure`) blieb dabei aber konstant. Er wollte angreifen und
+wich gleichzeitig aus.
+
+Rechenzeit ist dabei kein Problem, im Gegenteil: 15 Spieler kosten **6.99 ms
+je Zug**, sechs kosten 7.95. Der Grund ist die Architektur — die Suche
+verzweigt nur über die eigenen sechs Handlungen, also höchstens
+`beam × 6 × depth = 2268` Knoten je Zug, unabhängig von der Spielerzahl. Die
+Gegner kommen nicht als Zweige vor, sondern als einmal je Zug berechnete
+Felder, deren Kosten linear mit ihrer Zahl wachsen. Würde man wie beim Schach
+auch über die Gegnerzüge verzweigen, wären es bei 15 Spielern **6¹⁴ = 78
+Milliarden** Kombinationen für ein einziges Ply.
+
+### `phase_exposure`: Vorsicht, die über die Partie abnimmt
+
+`exposure * (1 + phase_exposure * verbraucht)`, wobei `verbraucht` von 0 auf 1
+läuft, während das Brett leergefressen wird. Bei −1.0 fällt die Vorsicht genau
+dann auf null, wenn kein Kohl mehr da ist.
+
+**15 Spieler, 3200 Partien, Zuglimit 2000:**
+
+| `phase_exposure` | allein übrig | Differenz | p |
+|---|---|---|---|
+| 0.0 | 6.1% | — | — |
+| −0.4 | 8.5% | +2.4 | 0.056 |
+| −0.8 | 12.0% | **+5.9** | 1.7·10⁻⁵ |
+| −1.0 | 14.1% | **+8.0** | 2.9·10⁻⁸ |
+
+Streng monoton — so sieht ein kausaler Effekt aus, und Rauschen sieht nicht so
+aus. Der naheliegende Einwand war, ein mutigerer Bot könnte allein deshalb
+besser aussehen, weil er Partien früher *beendet* statt sie besser zu
+*gewinnen*; deshalb der Lauf mit Limit 2000 statt 400. Er trägt nicht: auch
+unter den **entschiedenen** Partien steigt die Quote von 74.2% auf 87.6%.
+
+**6 Spieler, 4500 Partien, Zuglimit 1500** — die Gegenprobe, denn es wäre ein
+schlechter Tausch, den Turnierfall zu verbessern und den Vorführfall zu
+verschlechtern:
+
+| | `basis` | −0.8 | −1.0 |
+|---|---|---|---|
+| Lehrer-Aufstellung | 64.4% | **71.0%** | 68.0% |
+| gemischt | 44.4% | 48.2% | **50.2%** |
+| hart | 41.0% | **49.2%** | 49.0% |
+| **gesamt** | 49.9% | **56.1%** (p = 8·10⁻⁵) | 55.7% (p = 4·10⁻⁴) |
+
+−0.8 und −1.0 sind voneinander **nicht** unterscheidbar (p = 0.15 bei 15
+Spielern, p = 0.78 bei sechs). Ausgeliefert wird −1.0, weil es bei der
+Turniergröße nominell vorn liegt und die Vorsicht genau am leeren Brett auf
+null fällt statt vorher abgeschnitten zu werden.
+
+Der Preis ist klein und nirgends signifikant: „stärkster" bleibt gleich
+(p = 0.43 bis 0.82), die mittlere Stärke fällt von 117 auf 104. Da die
+Siegbedingung „als Letzter übrig" ist und nicht „am stärksten", ist das der
+richtige Handel.
+
+### Was dabei nichts gebracht hat
+
+**Mehr Suchtiefe.** Der Optimierer hatte `depth = 14` gewählt, den oberen Rand
+seines Suchbereichs — das sah nach Deckelung aus. Bei 15 Spielern gemessen
+bringt `depth = 22` aber nichts (p = 0.64 und 0.41) und kostet 42 % mehr
+Rechenzeit. Die Grenze war nicht der Engpass. Der Horizont-Effekt ist hier
+offenbar dadurch entschärft, dass `P(alive)` und `danger()` an **jedem** Ply
+mitlaufen und nicht nur am Blatt — womit auch der Anlass für eine
+Quiescence-Suche entfällt.
+
 ## Wie groß muss eine Messung sein?
 
 Das Konfidenzintervall einer Quote aus 100 Partien ist rund ±10 Punkte. Alle

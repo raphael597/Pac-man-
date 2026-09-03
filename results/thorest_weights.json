@@ -13,7 +13,7 @@
     14.0,
     0.9972464021346342,
     0.8333751053180897,
-    0.0,
+    -1.0,
     1.0,
     1.0
   ],
@@ -49,7 +49,7 @@
     "depth": 14,
     "attack_margin": 0.9972464021346342,
     "harvest_rate": 0.8333751053180897,
-    "phase_exposure": 0.0,
+    "phase_exposure": -1.0,
     "facing_trust": 1.0,
     "wall_aware": 1
   },
@@ -65,5 +65,10 @@
     "strongest": 0.6785714285714286,
     "turns": 204.25
   },
-  "elapsed_s": 481.1
+  "elapsed_s": 481.1,
+  "phase_exposure_beleg": {
+    "entscheidung": "-1.0",
+    "warum": "Bei 15 Spielern allein uebrig 14.1% statt 6.1% (p=2.9e-08), bei 6 Spielern 55.7% statt 49.9% (p=0.00037). -0.8 und -1.0 sind voneinander nicht unterscheidbar (p=0.15 und 0.78); -1.0 liegt bei der Turniergroesse nominell vorn und laesst die Vorsicht genau dann auf null fallen, wenn das Brett leer ist.",
+    "partien": 7700
+  }
 }
