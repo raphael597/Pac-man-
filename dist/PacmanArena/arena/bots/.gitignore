@@ -1,0 +1,5 @@
+# Bots, die ihr hier hineinlegt, gehoeren euch - nicht ins Repository.
+# Die Beispiel-Vorlage bleibt versioniert.
+*
+!.gitignore
+!beispiel_*.py
