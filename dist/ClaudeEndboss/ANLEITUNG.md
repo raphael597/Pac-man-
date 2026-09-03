@@ -1,15 +1,18 @@
 # ClaudeEndboss
 
-Mein Pacman-Bot als eigene Datei — genau wie `TRex.py`. Die Engine-Dateien in
-diesem Ordner (`Pacman.py`, `PacmanGame.py`, `PacmanRenderer.py`, `TRex.py`,
-`icons/`) sind unverändert.
+Mein Pacman-Bot als eigene Datei — genau wie `TRex.py`.
+
+`PacmanGame.py` in diesem Ordner ist **um zwei Zeilen ergänzt**, damit der
+Endboss beim Start dabei ist: der Import oben und ein Eintrag in `pacmans`.
+Beide sind mit `# <- dazu` markiert. Alles andere daran — und `Pacman.py`,
+`PacmanRenderer.py`, `TRex.py`, `icons/` — ist unverändert.
 
 ## Sofort ausprobieren
 
 ```bash
-python ClaudeEndboss.py      # eine Partie, nur Text
-python beispiel.py     # zehn Partien mit Statistik
-python PacmanGame.py   # grafisch (braucht pygame)
+python PacmanGame.py     # grafisch, Endboss ist dabei (braucht pygame)
+python beispiel.py       # zehn Partien mit Statistik, ohne Fenster
+python ClaudeEndboss.py  # Selbsttest der Datei
 ```
 
 ## Einbauen
@@ -22,22 +25,26 @@ from TRex import TRex
 from ClaudeEndboss import ClaudeEndboss          # <- nur diese Zeile dazu
 
 pacmans = [[Pacman, "Pacman1"], [Pacman, "Pacman2"], [Pacman, "Pacman3"],
-           [TRex, "Trex1"], [ClaudeEndboss, "ClaudeEndboss"]]        # <- und hier
+           [TRex, "Trex1"], [TRex, "Trex2"],
+           [ClaudeEndboss, "ClaudeEndboss"]]                    # <- und hier
 walls = [[[5, 3], Direction.east, 8], [[5, 4], Direction.south, 3]]
 field = Field(15, pacmans, walls)
 ```
 
-In `PacmanGame.py` sind das genau zwei geänderte Zeilen: der Import oben und
-ein Eintrag in `pacmans`.
+Genau so steht es schon in `PacmanGame.py` — TRex bleibt als Gegner drin, der
+Endboss kommt als sechster Spieler dazu. Willst du die Original-Aufstellung
+deines Lehrers zurück, lösch einfach die beiden Zeilen mit `# <- dazu`.
 
 ## Dateien
 
 | Datei | was drin ist |
 |---|---|
 | `ClaudeEndboss.py` | **die Klasse** — eigenständig, nur Standardbibliothek |
-| `Pacman.py`, `PacmanGame.py`, `PacmanRenderer.py`, `TRex.py` | Engine, unverändert |
+| `PacmanGame.py` | Startdatei, um zwei Zeilen ergänzt (`# <- dazu`) |
+| `Pacman.py`, `PacmanRenderer.py`, `TRex.py` | Engine, unverändert |
 | `icons/` | Sprites für den Renderer |
-| `beispiel.py` | zehn Partien mit Statistik |
+| `beispiel.py` | zehn Partien mit Statistik, ohne Fenster |
+| `spiel_mit_endboss.py` | dasselbe wie `PacmanGame.py`, als separate Datei |
 
 Keine Installation, keine Zusatzpakete (außer `pygame` für die grafische
 Variante), Python 3.8+.
