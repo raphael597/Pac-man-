@@ -170,7 +170,7 @@ class Mitschrift:
 
     # ------------------------------------------------------------------
     def schreibe_jsonl(self, pfad: str) -> None:
-        with open(pfad, "w") as datei:
+        with open(pfad, "w", encoding="utf-8") as datei:
             for zeile in self.zeilen:
                 datei.write(json.dumps(zeile, ensure_ascii=False) + "\n")
 
@@ -247,7 +247,7 @@ class Mitschrift:
             "  gedreht hat? Drehen kostet einen ganzen Zug.",
             "",
         ]
-        with open(pfad, "w") as datei:
+        with open(pfad, "w", encoding="utf-8") as datei:
             datei.write("\n".join(teile))
 
 

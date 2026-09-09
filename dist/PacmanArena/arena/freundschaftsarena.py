@@ -660,12 +660,17 @@ def schreibe_replay(pfad: str, daten: dict) -> None:
     legen: die Datei soll man weiterschicken koennen, und ein Browser laedt
     aus einer lokalen HTML-Datei ohnehin keine zweite Datei nach.
     """
+    # encoding ueberall ausdruecklich: auf deutschem Windows ist die
+    # Standardkodierung cp1252, und die Vorlage ist UTF-8 voller Umlaute.
+    # Ohne diese Angabe stirbt --grafisch dort im ersten Moment mit einem
+    # UnicodeDecodeError - auf Linux faellt das nie auf, weil dort UTF-8
+    # die Vorgabe ist.
     vorlage = os.path.join(HIER, "replay_vorlage.html")
-    with open(vorlage) as datei:
+    with open(vorlage, encoding="utf-8") as datei:
         html = datei.read()
     # Kein </script> im JSON, sonst endet das Skript mitten in den Daten.
     roh = json.dumps(daten, separators=(",", ":")).replace("</", "<\\/")
-    with open(pfad, "w") as datei:
+    with open(pfad, "w", encoding="utf-8") as datei:
         datei.write(html.replace("__DATEN__", roh))
 
 
@@ -757,7 +762,7 @@ def main() -> int:
         diagnose(bilanzen)
 
     if args.bericht:
-        with open(args.bericht, "w") as datei:
+        with open(args.bericht, "w", encoding="utf-8") as datei:
             json.dump({"partien": args.partien, "saat": args.saat,
                        "spieler": [n for _, n in aufstellung],
                        "rohdaten": rohdaten}, datei, indent=1)

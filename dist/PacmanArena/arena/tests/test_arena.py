@@ -284,3 +284,59 @@ class TestGrafisch(unittest.TestCase):
         self.assertIsNone(ergebnis,
                           "ohne pygame darf nichts zurueckkommen, aber auch "
                           "nichts fliegen - der Nutzer braucht einen Rat")
+
+
+class TestWindowsTauglich(unittest.TestCase):
+    """Fehler, die auf Linux nie auffallen.
+
+    Python nimmt ohne Angabe die Kodierung des Systems. Auf Linux ist das
+    UTF-8, auf deutschem Windows cp1252. Die Replay-Vorlage ist UTF-8 und
+    voller Umlaute, der Bericht auch - ohne ausdrueckliche Angabe stirbt
+    beides auf Windows sofort, waehrend hier alles gruen bleibt. Deshalb
+    wird das statisch geprueft und nicht dem Zufall des Testrechners
+    ueberlassen.
+    """
+
+    def test_jeder_dateizugriff_nennt_seine_kodierung(self):
+        import ast
+        import os
+
+        ordner = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        fehlend = []
+        for datei in ("freundschaftsarena.py", "protokoll.py"):
+            pfad = os.path.join(ordner, datei)
+            with open(pfad, encoding="utf-8") as handle:
+                baum = ast.parse(handle.read())
+            for knoten in ast.walk(baum):
+                if not (isinstance(knoten, ast.Call)
+                        and isinstance(knoten.func, ast.Name)
+                        and knoten.func.id == "open"):
+                    continue
+                if not any(k.arg == "encoding" for k in knoten.keywords):
+                    fehlend.append(f"{datei}:{knoten.lineno}")
+        self.assertEqual(
+            fehlend, [],
+            "open() ohne encoding= laeuft auf Windows in die Kodierung des "
+            "Systems und stirbt an den Umlauten: " + ", ".join(fehlend))
+
+    def test_die_vorlage_ist_utf8_und_braucht_es_auch(self):
+        """Belegt, dass die Angabe nicht bloss Kosmetik ist.
+
+        cp1252 wirft hier keinen Fehler - es liest die Bytes einfach falsch.
+        Das ist schlimmer als ein Absturz: die Seite entsteht, und erst im
+        Browser sieht man "Ã¤" statt "ä". Genau deshalb faellt so etwas auf
+        einem Linux-Testrechner nie auf.
+        """
+        import os
+
+        pfad = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "replay_vorlage.html")
+        with open(pfad, "rb") as handle:
+            roh = handle.read()
+        richtig = roh.decode("utf-8")
+        self.assertTrue(any(b > 127 for b in roh),
+                        "ohne Sonderzeichen waere die Angabe egal")
+        self.assertNotEqual(
+            roh.decode("cp1252", errors="replace"), richtig,
+            "cp1252 muesste hier verstuemmeln - sonst belegt der Test nichts")
