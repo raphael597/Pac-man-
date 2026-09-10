@@ -680,14 +680,18 @@ def main() -> int:
         description="Eure Bots gegeneinander, auf der Engine des Lehrers.")
     ap.add_argument("--ordner", default=os.path.join(HIER, "bots"),
                     help="wo die Bot-Dateien liegen")
-    ap.add_argument("--partien", type=int, default=20)
+    ap.add_argument("--partien", type=int, default=20,
+                    help="wie viele Partien gespielt werden (Standard 20)")
     ap.add_argument("--fueller", type=int, default=0,
                     help="zusaetzliche Gegner, die nicht dumm sind")
-    ap.add_argument("--feldgroesse", type=int, default=15)
-    ap.add_argument("--ohne-waende", action="store_true")
+    ap.add_argument("--feldgroesse", type=int, default=15,
+                    help="Kantenlaenge des Bretts (Standard 15, wie beim Lehrer)")
+    ap.add_argument("--ohne-waende", action="store_true",
+                    help="ohne die sechs Waende aus PacmanGame.py spielen")
     ap.add_argument("--grenze", type=int, default=1500,
                     help="Zuglimit; die Engine selbst hat keines")
-    ap.add_argument("--saat", type=int, default=1)
+    ap.add_argument("--saat", type=int, default=1,
+                    help="Zufallsstart; gleiche Saat = exakt gleiche Partien")
     ap.add_argument("--bericht", help="Rohdaten als JSON hierhin schreiben")
     ap.add_argument("--replay",
                     help="eine Partie als HTML zum Anschauen hierhin schreiben")
@@ -698,7 +702,8 @@ def main() -> int:
     ap.add_argument("--warum",
                     help="kuratierter Bericht als Markdown - der Text, den man "
                          "einer KI vorlegt")
-    ap.add_argument("--nur-tabelle", action="store_true")
+    ap.add_argument("--nur-tabelle", action="store_true",
+                    help="nur die Tabelle, ohne die ausfuehrliche Diagnose")
     ap.add_argument("--grafisch", action="store_true",
                     help="Turnier plus Replay als HTML, oeffnet den Browser")
     ap.add_argument("--fenster", action="store_true",

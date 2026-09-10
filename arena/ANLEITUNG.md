@@ -1,4 +1,10 @@
-# Freundschaftsarena
+# Freundschaftsarena — die ausführliche Fassung
+
+> Wenn ihr gerade erst anfangt, lest **`README.md`** im Ordner darüber. Dort
+> steht alles, was man zum Loslegen braucht, Schritt für Schritt. Diese Datei
+> hier geht tiefer: das Format des Zugprotokolls, die Statistik dahinter, und
+> was die einzelnen Zahlen bedeuten.
+
 
 Eure Bots gegeneinander, auf der echten Engine des Lehrers, mit einer
 Auswertung, aus der man etwas lernen kann.
