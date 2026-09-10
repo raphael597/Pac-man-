@@ -14,46 +14,100 @@ habt, fangt bei „Schritt 1" an.
 **Python 3.8 oder neuer.** Sonst nichts. Kein `pip install`, keine Anmeldung,
 kein Internet.
 
-Testen, ob Python da ist — Terminal öffnen (siehe Schritt 1) und eingeben:
+---
+
+## Schritt 1: Entpacken
+
+Entpackt die ZIP-Datei irgendwohin, wo ihr sie wiederfindet. Ihr bekommt einen
+Ordner namens `PacmanArena`. Zum Beispiel:
 
 ```
-python --version
+H:\Informatik\Pacman\PacmanArena
 ```
 
-Kommt so etwas wie `Python 3.10.11`, ist alles gut. Kommt eine Fehlermeldung,
-probiert `python3 --version` und benutzt dann überall `python3` statt `python`.
+Merkt euch diesen Pfad — den braucht ihr gleich.
+
+> **Wichtig:** Manche Entpack-Programme legen einen Ordner *im* Ordner an, also
+> `PacmanArena\PacmanArena`. Öffnet den entpackten Ordner und schaut nach:
+> Ihr müsst darin `README.md`, `Pacman.py` und einen Ordner `arena` sehen. Seht
+> ihr stattdessen wieder nur einen Ordner `PacmanArena`, dann ist *der* der
+> richtige.
 
 ---
 
-## Schritt 1: Terminal im richtigen Ordner öffnen
+## Schritt 2: PowerShell im richtigen Ordner öffnen
 
-Entpackt die ZIP-Datei irgendwohin. Ihr bekommt einen Ordner `PacmanArena`.
+Es gibt zwei Wege. Der erste ist schneller, der zweite funktioniert immer.
 
-**Windows:** Öffnet den Ordner `PacmanArena` im Explorer. Klickt oben in die
-Adressleiste, sodass der Pfad blau markiert ist, tippt `powershell` und drückt
-Enter. Es öffnet sich ein blaues Fenster, das bereits im richtigen Ordner
-steht.
+### Weg A — direkt aus dem Explorer
 
-**Mac:** Rechtsklick auf den Ordner `PacmanArena` → „Neuer Terminaltab im
-Ordner". Falls das fehlt: Terminal öffnen, `cd ` eintippen (mit Leerzeichen am
-Ende), den Ordner ins Fenster ziehen, Enter.
+Öffnet den Ordner `PacmanArena` im Explorer. Klickt oben in die **Adressleiste**,
+sodass der Pfad blau markiert ist. Tippt `powershell` und drückt Enter.
 
-**Linux:** Rechtsklick in den Ordner → „Im Terminal öffnen".
+Es öffnet sich ein blaues Fenster, das schon im richtigen Ordner steht. Fertig.
 
-Prüfen, ob ihr richtig steht:
+### Weg B — mit `cd` hinnavigieren
 
+`cd` heißt „change directory", also Ordner wechseln. Startmenü → `powershell`
+eingeben → Enter. Dann:
+
+```powershell
+cd H:\Informatik\Pacman\PacmanArena
 ```
+
+Also `cd`, ein Leerzeichen, und der Pfad zu eurem Ordner.
+
+**Tipp, der euch das Tippen spart:** Schreibt `cd ` (mit Leerzeichen), zieht dann
+den Ordner `PacmanArena` aus dem Explorer in das PowerShell-Fenster und drückt
+Enter. Der Pfad wird automatisch eingefügt.
+
+**Wenn der Ordner auf einem anderen Laufwerk liegt** — etwa auf `H:`, während
+PowerShell in `C:` startet — müsst ihr erst das Laufwerk wechseln:
+
+```powershell
+H:
+cd H:\Informatik\Pacman\PacmanArena
+```
+
+### Die vier Befehle zum Navigieren
+
+| Befehl | was er tut |
+|---|---|
+| `dir` | zeigt, was im aktuellen Ordner liegt |
+| `pwd` | zeigt, in welchem Ordner ihr gerade steht |
+| `cd unterordner` | geht **hinein** in einen Unterordner |
+| `cd ..` | geht **einen Ordner zurück** (nach oben) |
+
+`cd ..` braucht ihr, wenn ihr euch verlaufen habt oder aus Versehen einen Ordner
+zu tief gelandet seid. Zweimal zurück geht mit `cd ..\..`.
+
+### Prüfen, ob ihr richtig steht
+
+```powershell
+dir
+```
+
+Ihr müsst **`arena`**, **`Pacman.py`** und **`README.md`** in der Liste sehen.
+Seht ihr etwas anderes, seid ihr im falschen Ordner.
+
+Zur Sicherheit noch dieser Befehl:
+
+```powershell
 python arena/freundschaftsarena.py --help
 ```
 
-Kommt eine Liste von Optionen, seid ihr im richtigen Ordner. Kommt
-`No such file or directory`, seid ihr es nicht.
+Kommt eine Liste von Optionen, passt alles. Kommt `No such file or directory`,
+steht ihr im falschen Ordner — zurück zu Weg A.
+
+> Kommt `python: Der Begriff "python" wurde nicht erkannt`, probiert es mit
+> `py` statt `python`. In WinPython heißt der Startbefehl manchmal auch anders;
+> dann benutzt ihr überall in diesem README `py` statt `python`.
 
 ---
 
-## Schritt 2: Der erste Lauf
+## Schritt 3: Der erste Lauf
 
-```
+```powershell
 python arena/freundschaftsarena.py --partien 20 --fueller 4 --grafisch
 ```
 
@@ -63,26 +117,42 @@ Das spielt 20 Partien und öffnet danach eine Seite im Browser:
 * darunter **eine Partie zum Abspielen**, Zug für Zug, mit Schieberegler
 * darunter der **Stärkeverlauf** und eine Karte je Bot
 
-Es entsteht dabei die Datei `arena_turnier.html` im Ordner. Die könnt ihr
-verschicken — sie funktioniert überall, auch ohne Python.
+Es entsteht dabei die Datei `arena_turnier.html` in eurem Ordner. Die könnt ihr
+verschicken — sie funktioniert überall, auch auf Rechnern ohne Python.
 
-> Öffnet der Browser sich nicht von selbst, tippt `start arena_turnier.html`
-> (Windows) bzw. `open arena_turnier.html` (Mac), oder klickt die Datei im
-> Explorer doppelt an.
+Öffnet der Browser sich nicht von selbst:
+
+```powershell
+start arena_turnier.html
+```
 
 ---
 
-## Schritt 3: Euren eigenen Bot einbauen
+## Schritt 4: Euren eigenen Bot einbauen
 
-Legt eure `.py`-Datei in den Ordner **`arena/bots/`**. Mehr nicht. Jede Klasse
-darin, die von `Pacman` erbt, tritt beim nächsten Lauf automatisch an.
+**Das ist alles: Datei in den Ordner `arena\bots\` legen.** Nichts anmelden,
+nichts importieren, nichts eintragen. Beim nächsten Start ist euer Bot dabei.
 
-Zwei liegen schon drin:
+Konkret:
+
+1. Öffnet im Explorer den Ordner `PacmanArena\arena\bots`.
+2. Kopiert eure `.py`-Datei hinein — einfach per Drag & Drop.
+3. Startet die Arena wie in Schritt 3.
+4. Ganz oben in der Ausgabe steht `gefunden: EuerBotName`.
+
+Steht euer Bot nicht in dieser Liste, stimmt etwas mit der Datei nicht — siehe
+„Wenn etwas nicht klappt" weiter unten.
+
+Zwei Dateien liegen schon drin:
 
 | Datei | |
 |---|---|
 | `beispiel_gerader_fresser.py` | Kopiervorlage, einfache Strategie |
 | `ClaudeEndboss.py` | ein sehr starker Bot, als Maßstab |
+
+Am schnellsten geht es so: `beispiel_gerader_fresser.py` kopieren, umbenennen
+(z. B. `mein_bot.py`), die Klasse darin umbenennen, und dann Stück für Stück
+ändern.
 
 ### Das kleinstmögliche Beispiel
 
@@ -94,7 +164,7 @@ class MeinBot(Pacman):
         self._Move()          # läuft immer geradeaus
 ```
 
-Speichern als `arena/bots/mein_bot.py`, Arena starten — er ist dabei.
+Speichern als `arena\bots\mein_bot.py`, Arena starten — er ist dabei.
 
 ### Die drei Regeln der Engine
 
@@ -137,19 +207,19 @@ herein. Rechnet Koordinaten deshalb immer mit `% Position.fieldsize`.
 
 ### Turnier spielen
 
-```
+```powershell
 python arena/freundschaftsarena.py --partien 20 --fueller 4
 ```
 
 Tabelle im Terminal, danach eine Diagnose je Bot.
 
-```
+```powershell
 python arena/freundschaftsarena.py --partien 20 --fueller 4 --grafisch
 ```
 
 Dasselbe, zusätzlich als Seite im Browser.
 
-```
+```powershell
 python arena/freundschaftsarena.py --partien 200 --fueller 14
 ```
 
@@ -159,20 +229,20 @@ jeden Spieler. Wer auf lange Fressbahnen gebaut hat, findet keine mehr.
 
 ### Zuschauen
 
-```
+```powershell
 python arena/freundschaftsarena.py --partien 1 --replay partie.html
 ```
 
 Schreibt eine HTML-Datei zum Abspielen — ohne den Browser zu öffnen.
 
-```
+```powershell
 python arena/freundschaftsarena.py --replay-saat 7 --grafisch
 ```
 
 Zeigt unten gezielt Partie Nummer 7 statt der ersten. Nützlich, wenn ihr
 sehen wollt, wie genau euer Bot in *der einen* Partie verloren hat.
 
-```
+```powershell
 python arena/freundschaftsarena.py --fenster --fueller 4 --fps 6
 ```
 
@@ -182,7 +252,7 @@ das Tempo, Esc schließt. **Braucht `pygame`** — falls es fehlt:
 
 ### Herausfinden, warum ein Bot verloren hat
 
-```
+```powershell
 python arena/freundschaftsarena.py --partien 1 --warum bericht.md
 ```
 
@@ -202,7 +272,7 @@ der Gegner im Rücken und gewinnt mit 92 %.
 Der Bericht ist klein genug, um ihn samt eurem Bot-Quelltext einer KI
 vorzulegen und zu fragen, was der Bot hätte tun sollen.
 
-```
+```powershell
 python arena/freundschaftsarena.py --partien 1 --protokoll zuege.jsonl
 ```
 
@@ -211,7 +281,7 @@ Code.
 
 ### Nachprüfen, dass die Arena richtig zählt
 
-```
+```powershell
 python -m unittest arena.tests.test_arena
 ```
 
@@ -292,8 +362,14 @@ Ihr habt eine ältere Fassung der Arena. Ersetzt den ganzen `PacmanArena`-Ordner
 durch den neuen. Bis dahin tut es `--replay partie.html`.
 
 **`No such file or directory: arena/freundschaftsarena.py`**
-Das Terminal steht im falschen Ordner. Siehe Schritt 1. Mit `dir` (Windows)
-bzw. `ls` (Mac/Linux) prüfen: Ihr müsst `arena` und `Pacman.py` sehen.
+PowerShell steht im falschen Ordner. Tippt `dir` — ihr müsst `arena`,
+`Pacman.py` und `README.md` sehen. Wenn nicht: `cd ..` geht einen Ordner
+zurück, dann noch mal schauen. Am einfachsten ist Weg A aus Schritt 2.
+
+**`python: Der Begriff "python" wurde nicht erkannt`**
+Probiert `py` statt `python`. Falls auch das nichts bringt, ist Python nicht
+im Suchpfad — dann startet PowerShell über die WinPython-Verknüpfung statt
+über das Startmenü.
 
 **`ModuleNotFoundError: No module named 'pygame'`**
 Nur `--fenster` braucht pygame. Entweder `pip install pygame`, oder statt
@@ -301,8 +377,15 @@ dessen `--grafisch` benutzen — das braucht nichts.
 
 **Mein Bot taucht nicht in der Tabelle auf**
 Die Arena meldet beim Start, was sie gefunden hat („gefunden: MeinBot").
-Fehlt er: Erbt die Klasse wirklich von `Pacman`? Liegt die Datei in
-`arena/bots/`? Beginnt der Dateiname mit `_`? Solche werden übersprungen.
+Fehlt er, geht diese Liste durch:
+
+* Liegt die Datei wirklich in `arena\\bots\\`? (Nicht daneben, nicht eine
+  Ebene höher.)
+* Endet sie auf `.py`? Windows blendet Endungen oft aus — im Explorer unter
+  *Ansicht* → *Dateinamenerweiterungen* einschalten und nachsehen, dass die
+  Datei nicht `mein_bot.py.txt` heißt.
+* Beginnt der Dateiname mit `_`? Solche werden absichtlich übersprungen.
+* Erbt eure Klasse von `Pacman`, also `class MeinBot(Pacman):`?
 
 **`!! meinbot.py laesst sich nicht laden: ...`**
 Ein Fehler in eurer Datei. Die Meldung dahinter sagt welcher. Das Turnier läuft
@@ -337,7 +420,7 @@ zählt den Zug als verloren, damit die anderen weiterspielen können.
 
 Jederzeit abrufbar mit:
 
-```
+```powershell
 python arena/freundschaftsarena.py --help
 ```
 
