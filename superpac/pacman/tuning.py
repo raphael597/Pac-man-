@@ -31,7 +31,12 @@ BOUNDS: Dict[str, Tuple[float, float]] = {
     "hunt_decay": (0.70, 0.96),
     "exposure": (0.0, 20.0),
     "facing_discipline": (0.0, 40.0),
-    "survival_bonus": (0.0, 30.0),
+    # Obergrenze von 30 auf 150 angehoben. Der Wert entscheidet, ob ein
+    # Kampf angenommen wird: abgelehnt wird erst ab survival_bonus >
+    # p*s/(1-p), und bei einem 69%-Kampf gegen einen Gegner der Staerke 36
+    # sind das 80. Der Optimierer konnte diese Region also nie sehen - die
+    # Grenze hat die Antwort ausgeschlossen, nicht die Suche.
+    "survival_bonus": (0.0, 150.0),
     "discount": (0.85, 0.999),
     "attack_margin": (0.4, 3.0),
     "harvest_rate": (0.4, 1.2),
