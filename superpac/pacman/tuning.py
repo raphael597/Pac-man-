@@ -126,6 +126,13 @@ def build_mix(names: Sequence[str]) -> List[Tuple[Callable, str]]:
     except Exception:
         catalogue["trex"] = Pacman.Pacman
     catalogue["random"] = Pacman.Pacman
+    # Wir selbst als Sparringspartner. Alle anderen Gegner hier erreichen
+    # Staerken um 26 bis 44; die Bots der Mitschueler landen bei 50 bis 70.
+    # Gegen zu schwache Gegner gemessen sieht Angriffslust immer gut aus,
+    # weil man fast jeden Kampf gewinnt. Erst gegen einen ebenbuertigen
+    # Gegner zeigt sich, ob sie sich auch dann noch lohnt.
+    from .thorest import build_thorest
+    catalogue["endboss"] = build_thorest(Pacman.Pacman)
     return [(catalogue[n], f"{n}{i}") for i, n in enumerate(names)]
 
 

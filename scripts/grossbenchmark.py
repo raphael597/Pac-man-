@@ -76,6 +76,11 @@ MIXES: Dict[str, Tuple[str, ...]] = {
     "turnier15":   ("random", "random", "random", "trex", "trex",
                     "harvester", "harvester", "harvester", "sweeper",
                     "sweeper", "hunter", "hunter", "cautious", "coward"),
+    # Gegen uns selbst: der staerkste Gegner, den wir haben. Die Bots der
+    # Mitschueler erreichen Staerken wie unserer, die Sparringsbots nicht.
+    "spiegel":     ("endboss", "endboss", "endboss", "harvester", "sweeper"),
+    "spiegel8":    ("endboss", "endboss", "endboss", "harvester", "sweeper",
+                    "hunter", "trex"),
     "turnier15hart": ("harvester", "harvester", "sweeper", "sweeper",
                       "sweeper", "hunter", "hunter", "hunter", "cautious",
                       "cautious", "coward", "trex", "harvester", "sweeper"),
