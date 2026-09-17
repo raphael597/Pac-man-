@@ -166,6 +166,39 @@ class MeinBot(Pacman):
 
 Speichern als `arena\bots\mein_bot.py`, Arena starten — er ist dabei.
 
+### Ein eigenes Bild für euren Bot
+
+Im Fenster (`--fenster`, und auch in `PacmanGame.py`) wird jeder Bot als
+Bild gezeichnet. Welches, steht in einer Zeile im Konstruktor:
+
+```python
+self.icon = "icons/MeinBot.png"
+```
+
+Legt das Bild als PNG nach `icons/`. Drei Dinge gibt der Renderer vor:
+
+**Das Bild muss nach rechts schauen.** Osten ist die ungedrehte
+Grundstellung; alle anderen Richtungen dreht der Renderer daraus. Ein Bild,
+das nach oben schaut, läuft im Spiel seitwärts.
+
+**Es wird starr gedreht, nicht gespiegelt.** Schaut euer Bot nach Westen,
+steht das Bild auf dem Kopf. Alles mit einem klaren Oben und Unten — eine
+Krone, ein einzelnes Auge — sieht dann falsch aus. Zeichnet die Figur
+deshalb **symmetrisch zur Waagerechten**, und lasst nur das Maul die
+Richtung anzeigen. Der mitgelieferte `ClaudeEndboss` macht genau das.
+
+**Am Ende sind es 32 Pixel.** Der Renderer skaliert jedes Bild auf
+Zellengröße. Feine Linien verschwinden; was zählt, ist die Silhouette. Die
+Bilder des Lehrers sind 40 × 40, das passt gut.
+
+> Findet der Renderer die Datei nicht, stürzt nichts ab — er malt
+> stattdessen den farbigen Kreis. Ein Tippfehler im Pfad fällt also nur
+> daran auf, dass **kein** Bild erscheint.
+
+Wer sich eins erzeugen lassen will: `python scripts/mach_icon.py
+icons/MeinBot.png` zeichnet die Vorlage, aus der `ClaudeEndboss.png`
+entstanden ist — Farben und Form stehen oben in der Datei.
+
 ### Die drei Regeln der Engine
 
 1. Eure Klasse muss von `Pacman` erben.

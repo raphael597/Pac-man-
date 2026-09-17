@@ -154,7 +154,7 @@ class ThoresT(Pacman):
     def __init__(self, p, name, field):
         super().__init__(p, name, field)
         self.logo = "T"
-        self.icon = "icons/TRex.png"   # fuer PacmanRenderer
+        self.icon = "{icon}"   # fuer PacmanRenderer
         self.direction = Direction.west
         # total_turns=None: die Engine hat kein Zuglimit, PacmanGame laeuft
         # bis nur noch einer lebt. Der Kohl auf dem Brett ist dann die
@@ -271,6 +271,9 @@ def main() -> None:
     ap.add_argument("--out", default="dist/ThoresT/ThoresT.py")
     ap.add_argument("--name", default="ThoresT",
                     help="wie die Klasse und der Spieler heissen sollen")
+    ap.add_argument("--icon", default="icons/TRex.png",
+                    help="Bild fuer den PacmanRenderer; muss nach Osten "
+                         "schauen, denn Osten ist die ungedrehte Grundstellung")
     args = ap.parse_args()
     if not args.name.isidentifier():
         ap.error(f"{args.name!r} ist kein gueltiger Klassenname")
@@ -301,7 +304,8 @@ def main() -> None:
     header = (HEADER.replace("{built}", time.strftime("%Y-%m-%d"))
                     .replace("{weights_source}", source)
                     .replace("{imports}", "\n".join(ordered)))
-    footer = FOOTER.replace("{weights_dict}", json.dumps(weights_dict, indent=4))
+    footer = (FOOTER.replace("{weights_dict}", json.dumps(weights_dict, indent=4))
+                    .replace("{icon}", args.icon))
     text = header + "\n\n".join(bodies) + footer
 
     # Umbenennen erst hier, auf dem fertigen Text: der Name kommt in der

@@ -40,7 +40,7 @@ sich aus dem Brett exakt zurueckrechnen: Position geaendert -> gegangen,
 Blickrichtung geaendert -> gedreht, nichts -> gestanden.
 
 Erzeugt von scripts/build_standalone.py. Nur Standardbibliothek.
-Gebaut: 2026-09-03
+Gebaut: 2026-09-17
 Gewichte: getunt (results/thorest_weights.json)
 """
 
