@@ -36,7 +36,17 @@ def main() -> None:
     ap.add_argument("--start", default="",
                     help="weights json to seed the population from")
     ap.add_argument("--max-turns", type=int, default=300)
+    ap.add_argument("--train-mix", default=",".join(TRAIN_MIX),
+                    help="Gegner im Training, mit Komma getrennt")
+    ap.add_argument("--validation-mix", default=",".join(VALIDATION_MIX),
+                    help="Gegner fuer die Auswahl des Champions")
     args = ap.parse_args()
+    train_mix = tuple(n.strip() for n in args.train_mix.split(",") if n.strip())
+    val_mix = tuple(n.strip() for n in args.validation_mix.split(",") if n.strip())
+    if set(train_mix) & set(val_mix) == set(train_mix) and train_mix == val_mix:
+        ap.error("Training und Auswahl duerfen nicht dieselbe Menge sein - "
+                 "sonst waehlt man den Champion auf seinen eigenen Trainings"
+                 "daten aus")
 
     rng = random.Random(args.seed)
     base = clamp(Weights())
@@ -56,7 +66,7 @@ def main() -> None:
             # Fresh seeds per generation so the search cannot overfit one
             # board set; identical within it so candidates compare fairly.
             batch_seed = 4000 + generation * 733
-            jobs = [(ind.as_vector(), TRAIN_MIX, args.games, batch_seed,
+            jobs = [(ind.as_vector(), train_mix, args.games, batch_seed,
                      args.max_turns) for ind in population]
             results = list(pool.map(_job, jobs))
             paired = sorted(zip(population, results),
@@ -99,7 +109,7 @@ def main() -> None:
         if not any(f == base for f in finalists):
             finalists.append(base)
 
-        jobs = [(f.as_vector(), VALIDATION_MIX, max(24, args.games * 2), 91000,
+        jobs = [(f.as_vector(), val_mix, max(24, args.games * 2), 91000,
                  args.max_turns) for f in finalists]
         validation = list(pool.map(_job, jobs))
 

@@ -161,7 +161,12 @@ def score(weights: Weights, mix_names: Sequence[str], games: int = 24,
                       base_seed=base_seed, label="candidate",
                       fillers=build_mix(mix_names), walls=default_walls(),
                       max_turns=max_turns)
-    placement = 1.0 - report.mean_rank / 5.0
+    # Durch die tatsaechliche Zahl der Mitspieler teilen, nicht fest durch 5.
+    # Mit acht Spielern laufen die Plaetze von 0 bis 7, und der feste Teiler
+    # machte placement dort negativ - der Optimierer haette also gerade in
+    # den grossen Runden, auf die es ankommt, das Falsche belohnt.
+    mitspieler = max(1, len(mix_names))
+    placement = 1.0 - report.mean_rank / mitspieler
     relative = report.mean_strength / max(1.0, report.mean_best_rival)
     # Two ways to come out on top now: outlive everyone, or simply end up the
     # strongest when the clock stops. Matches often do not resolve to a sole
