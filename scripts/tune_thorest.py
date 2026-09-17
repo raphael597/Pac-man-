@@ -40,6 +40,11 @@ def main() -> None:
                     help="Gegner im Training, mit Komma getrennt")
     ap.add_argument("--validation-mix", default=",".join(VALIDATION_MIX),
                     help="Gegner fuer die Auswahl des Champions")
+    ap.add_argument("--validation-games", type=int, default=250,
+                    help="Partien je Kandidat bei der Auswahl. Vorher waren "
+                         "es 32, und das hat einmal einen Champion gekuert, "
+                         "der in 2000 gepaarten Partien 7.5 Punkte schlechter "
+                         "war als der Ausgangspunkt.")
     args = ap.parse_args()
     train_mix = tuple(n.strip() for n in args.train_mix.split(",") if n.strip())
     val_mix = tuple(n.strip() for n in args.validation_mix.split(",") if n.strip())
@@ -109,7 +114,7 @@ def main() -> None:
         if not any(f == base for f in finalists):
             finalists.append(base)
 
-        jobs = [(f.as_vector(), val_mix, max(24, args.games * 2), 91000,
+        jobs = [(f.as_vector(), val_mix, args.validation_games, 91000,
                  args.max_turns) for f in finalists]
         validation = list(pool.map(_job, jobs))
 
@@ -129,6 +134,30 @@ def main() -> None:
                    "weights": {n: getattr(champion, n) for n in Weights.names()},
                    "validation": validation[best_index],
                    "elapsed_s": round(time.perf_counter() - start, 1)}, fh, indent=2)
+    import math as _math
+    _p = validation[best_index].get("win_rate", 0.0)
+    _n = max(1, args.validation_games)
+    # Bei 0 oder 100 Prozent ist sqrt(p*(1-p)/n) exakt null - und eine
+    # Unsicherheit von +-0.0% zu melden waere die schlimmste aller Luegen,
+    # gerade dort, wo man am wenigsten weiss. In dem Fall greift die
+    # Dreierregel: ohne einen einzigen Treffer in n Versuchen liegt die
+    # wahre Quote mit 95% Sicherheit noch unter 3/n.
+    if _p <= 0.0 or _p >= 1.0:
+        _ki = 3.0 / _n
+    else:
+        _ki = 1.96 * _math.sqrt(_p * (1 - _p) / _n)
+    print(f"\nACHTUNG: ausgewaehlt auf {_n} Partien je Kandidat. Das "
+          f"Intervall auf die Siegquote des Champions ist +-{_ki:.1%}.")
+    _basis = next((v for f, v in zip(finalists, validation) if f == base), None)
+    if _basis is not None and champion != base:
+        _d = _p - _basis.get("win_rate", 0.0)
+        print(f"Abstand zum Ausgangspunkt: {_d:+.1%} - das ist "
+              f"{'weniger' if abs(_d) < 2 * _ki else 'mehr'} als die "
+              f"Streuung von +-{_ki:.1%}.")
+    print("Bevor diese Gewichte ausgeliefert werden, gehoeren sie gegen die "
+          "bisherigen gemessen:")
+    print("  python scripts/grossbenchmark.py --games 1000 --mixes spiegel8 "
+          "--variant \"getunt=<felder>\"")
     print(f"\nchampion -> {args.out} after {time.perf_counter() - start:.0f}s")
     print(json.dumps({n: getattr(champion, n) for n in Weights.names()}, indent=2))
 
